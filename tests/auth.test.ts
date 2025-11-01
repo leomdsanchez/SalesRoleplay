@@ -105,14 +105,15 @@ describe("Auth API", () => {
     it("should return current user when authenticated", async () => {
       const agent = request.agent(app);
 
+      // Register and login automatically creates session
       await agent.post("/api/v1/auth/register").send({
-        username: "testuser",
+        username: "meuser",
         password: "password123",
-      });
+      }).expect(200);
 
       const res = await agent.get("/api/v1/auth/me").expect(200);
 
-      expect(res.body.username).toBe("testuser");
+      expect(res.body.username).toBe("meuser");
       expect(res.body).toHaveProperty("id");
     });
 
