@@ -6,9 +6,10 @@ import {
   TTSVoices,
   voiceSettingsSchema,
   defaultSettings,
+  isGPT5Model,
   isGPT5ThinkingModel,
   getModelLabel
-} from "../shared/settings-schema";
+} from "../../shared/settings-schema";
 
 describe("Settings Schema", () => {
   describe("Model Arrays", () => {
@@ -35,6 +36,27 @@ describe("Settings Schema", () => {
       expect(TTSModels).toContain("gpt-4o-mini-tts");
       expect(TTSModels).toContain("tts-1");
       expect(TTSModels).toContain("tts-1-hd");
+    });
+  });
+
+  describe("GPT-5 Model Detection", () => {
+    it("should correctly identify GPT-5 models", () => {
+      expect(isGPT5Model("gpt-5")).toBe(true);
+      expect(isGPT5Model("gpt-5-thinking")).toBe(true);
+      expect(isGPT5Model("gpt-5-mini")).toBe(true);
+      expect(isGPT5Model("gpt-5-nano")).toBe(true);
+
+      // Should not identify non-GPT-5 models
+      expect(isGPT5Model("gpt-4o")).toBe(false);
+      expect(isGPT5Model("gpt-4o-mini")).toBe(false);
+      expect(isGPT5Model("chatgpt-4o-latest")).toBe(false);
+    });
+
+    it("should correctly identify GPT-5 thinking model", () => {
+      expect(isGPT5ThinkingModel("gpt-5-thinking")).toBe(true);
+      expect(isGPT5ThinkingModel("gpt-5")).toBe(false);
+      expect(isGPT5ThinkingModel("gpt-5-mini")).toBe(false);
+      expect(isGPT5ThinkingModel("gpt-4o")).toBe(false);
     });
   });
 
@@ -93,15 +115,11 @@ describe("Settings Schema", () => {
   });
 
   describe("Helper Functions", () => {
-    it("should correctly identify GPT-5 thinking model", () => {
-      expect(isGPT5ThinkingModel("gpt-5-thinking")).toBe(true);
-      expect(isGPT5ThinkingModel("gpt-5")).toBe(false);
-      expect(isGPT5ThinkingModel("gpt-4o")).toBe(false);
-    });
-
     it("should generate correct model labels", () => {
       expect(getModelLabel("gpt-5")).toBe("gpt-5 (latest generation)");
       expect(getModelLabel("gpt-5-thinking")).toBe("gpt-5-thinking (thinking + reasoning)");
+      expect(getModelLabel("gpt-5-mini")).toBe("gpt-5-mini (fast, cost-effective)");
+      expect(getModelLabel("gpt-5-nano")).toBe("gpt-5-nano (fastest, cheapest)");
       expect(getModelLabel("gpt-4o")).toBe("gpt-4o (multimodal)");
       expect(getModelLabel("chatgpt-4o-latest")).toBe("chatgpt-4o-latest (always updated)");
     });

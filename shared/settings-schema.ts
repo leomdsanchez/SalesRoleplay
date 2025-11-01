@@ -78,6 +78,11 @@ export const defaultSettings: VoiceAgentSettings = {
   autoPlayAudio: true,
 };
 
+// Helper to detect if model is GPT-5 series
+export function isGPT5Model(model: LLMModel): boolean {
+  return model.startsWith("gpt-5");
+}
+
 // Helper to detect if model is GPT-5 thinking model
 export function isGPT5ThinkingModel(model: LLMModel): boolean {
   return model === "gpt-5-thinking";
