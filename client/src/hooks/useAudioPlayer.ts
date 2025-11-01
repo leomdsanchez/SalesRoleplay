@@ -1,87 +1,105 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 /**
- * Hook para gerenciar fila de áudio e playback
- * Garante que áudios toquem em sequência sem overlap
+ * Hook KISS para playback de áudio sequencial
+ * Usa um único Audio element e troca src
  */
 export function useAudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [queue, setQueue] = useState<string[]>([]);
+  const [queueLength, setQueueLength] = useState(0);
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isProcessingRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
 
-  // Add audio to queue
-  const enqueueAudio = useCallback((audioBase64: string) => {
-    console.log("[AudioPlayer] Enqueuing audio");
-    setQueue((prev) => [...prev, audioBase64]);
+  // Initialize audio element once
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+    };
   }, []);
 
-  // Process queue
-  useEffect(() => {
-    if (queue.length === 0 || isProcessingRef.current) {
+  const playNext = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || queueRef.current.length === 0) {
+      setIsPlaying(false);
+      setQueueLength(0);
       return;
     }
 
-    const playNext = async () => {
-      isProcessingRef.current = true;
-      const [nextAudio, ...rest] = queue;
+    const nextAudio = queueRef.current.shift()!;
+    setQueueLength(queueRef.current.length);
 
-      console.log(`[AudioPlayer] Playing audio (${rest.length} remaining in queue)`);
-      setIsPlaying(true);
+    console.log(`[AudioPlayer] Playing (${queueRef.current.length} remaining)`);
+    setIsPlaying(true);
 
-      try {
-        // Create audio element
-        const audio = new Audio(`data:audio/mp3;base64,${nextAudio}`);
-        audioRef.current = audio;
+    // Set new source
+    audio.src = `data:audio/mp3;base64,${nextAudio}`;
 
-        // Wait for audio to finish
-        await new Promise<void>((resolve, reject) => {
-          audio.onended = () => {
-            console.log("[AudioPlayer] Audio finished");
-            resolve();
-          };
-          audio.onerror = (err) => {
-            console.error("[AudioPlayer] Audio error:", err);
-            reject(err);
-          };
-          audio.play().catch(reject);
-        });
-      } catch (err) {
-        console.error("[AudioPlayer] Playback error:", err);
-      } finally {
-        audioRef.current = null;
-        setQueue(rest);
-        setIsPlaying(false);
-        isProcessingRef.current = false;
-      }
-    };
-
-    playNext();
-  }, [queue]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
+    // Play
+    audio.play().catch((err) => {
+      console.error("[AudioPlayer] Play error:", err);
+      playNext(); // Try next
+    });
   }, []);
 
+  // Setup ended handler
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+      console.log("[AudioPlayer] Audio ended");
+      playNext(); // Play next in queue
+    };
+
+    const handleError = (e: ErrorEvent) => {
+      console.error("[AudioPlayer] Audio error:", e);
+      playNext(); // Skip and try next
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+    };
+  }, [playNext]);
+
+  const enqueueAudio = useCallback(
+    (audioBase64: string) => {
+      console.log("[AudioPlayer] Enqueue");
+      queueRef.current.push(audioBase64);
+      setQueueLength(queueRef.current.length);
+
+      // Start playing if not already
+      if (!isPlaying) {
+        playNext();
+      }
+    },
+    [isPlaying, playNext]
+  );
+
   const clearQueue = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.src = "";
     }
-    setQueue([]);
+    queueRef.current = [];
+    setQueueLength(0);
     setIsPlaying(false);
-    isProcessingRef.current = false;
   }, []);
 
   return {
     isPlaying,
-    queueLength: queue.length,
+    queueLength,
     enqueueAudio,
     clearQueue,
   };
