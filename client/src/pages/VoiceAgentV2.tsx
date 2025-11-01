@@ -65,6 +65,7 @@ export default function VoiceAgentV2() {
               variant="ghost"
               size="icon"
               className="text-muted-foreground"
+              onClick={() => window.location.href = "/settings"}
             >
               <Settings className="w-4 h-4" />
             </Button>

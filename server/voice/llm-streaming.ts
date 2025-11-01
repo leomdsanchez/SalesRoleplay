@@ -124,6 +124,27 @@ export async function* streamLLMResponse(
     }
   }
 
+  // Flush any remaining words from wordBuffer
+  if (wordBuffer.trim()) {
+    console.log("[LLM] Flushing final words:", wordBuffer);
+    yield {
+      text: wordBuffer,
+      isComplete: false,
+      isSentence: false,
+    };
+    wordBuffer = "";
+  }
+
+  // Flush any remaining text from buffer (incomplete sentence)
+  if (buffer.trim()) {
+    console.log("[LLM] Flushing final buffer:", buffer);
+    yield {
+      text: buffer.trim(),
+      isComplete: false,
+      isSentence: true, // Treat as sentence for TTS
+    };
+  }
+
   // Yield tool call if present
   if (toolCallBuffer && toolCallBuffer.name) {
     yield {
@@ -132,19 +153,11 @@ export async function* streamLLMResponse(
     };
   }
 
-  // Yield remaining buffer as final chunk
-  if (buffer.trim()) {
-    yield {
-      text: buffer.trim(),
-      isComplete: true,
-    };
-  } else if (!toolCallBuffer) {
-    // If no text and no tool call, yield empty completion
-    yield {
-      text: "",
-      isComplete: true,
-    };
-  }
+  // Final completion signal (no text)
+  yield {
+    text: "",
+    isComplete: true,
+  };
 }
 
 /**

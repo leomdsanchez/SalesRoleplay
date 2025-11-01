@@ -2,11 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import authRoutes from "./routes/auth";
+import { setupVoiceSettingsRoutes } from "./routes/voice-settings";
 import { VoiceSession } from "./voice/session";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   app.use("/api/v1/auth", authRoutes);
+  setupVoiceSettingsRoutes(app);
 
   const httpServer = createServer(app);
 
