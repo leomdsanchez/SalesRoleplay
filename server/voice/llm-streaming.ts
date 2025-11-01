@@ -51,11 +51,16 @@ export async function* streamLLMResponse(
     model: effectiveSettings.llmModel,
     messages,
     stream: true,
-    temperature: effectiveSettings.temperature,
-    top_p: effectiveSettings.topP,
-    tools: voiceAgentTools,
-    tool_choice: "auto",
   };
+
+  // GPT-5 models don't support temperature (only default 1.0)
+  if (!isGPT5) {
+    baseParams.temperature = effectiveSettings.temperature;
+  }
+
+  baseParams.top_p = effectiveSettings.topP;
+  baseParams.tools = voiceAgentTools;
+  baseParams.tool_choice = "auto";
 
   // Use correct token parameter based on model
   if (isGPT5) {
@@ -65,7 +70,7 @@ export async function* streamLLMResponse(
     console.log(`[LLM] Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}, reasoning_effort: ${effectiveSettings.reasoningEffort}, verbosity: ${effectiveSettings.verbosity}`);
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
-    console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}`);
+    console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}, temperature: ${effectiveSettings.temperature}`);
   }
 
   const stream = await openai.chat.completions.create(baseParams) as unknown as AsyncIterable<ChatCompletionChunk>;
@@ -215,8 +220,12 @@ export async function getLLMResponse(
   const apiParams: any = {
     model: effectiveSettings.llmModel,
     messages,
-    temperature: effectiveSettings.temperature,
   };
+
+  // GPT-5 models don't support temperature (only default 1.0)
+  if (!isGPT5) {
+    apiParams.temperature = effectiveSettings.temperature;
+  }
 
   // Use correct token parameter based on model
   if (isGPT5) {
