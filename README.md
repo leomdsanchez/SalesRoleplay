@@ -113,12 +113,16 @@ User Speech → STT → LLM Streaming → TTS → Audio Playback
 
 **Latência total percebida: ~1.2s** (superior à média da indústria)
 
-### Recursos Avançados
-- **Word-by-word streaming**: UI responsiva em tempo real
-- **Sentence-based TTS**: Qualidade de áudio otimizada
-- **Tool calling**: Execução em tempo real durante streaming
-- **Audio buffering**: Concorrência otimizada
-- **Reasoning control**: Effort e verbosity para GPT-5
+### UI Demo
+
+Acesse: `http://localhost:5000/`
+
+**Voice Agent V2 - Arquitetura Moderna:**
+- ✅ Hooks customizados para separação de responsabilidades
+- ✅ Componentes modulares (VoiceChat, VoiceControls)
+- ✅ Streaming avançado com GPT-5
+- ✅ Tool calling em tempo real
+- ✅ Reasoning control para modelos GPT-5 verbosity para GPT-5
 - **Error recovery**: Sistema robusto com fallbacks
 
 ## 🚀 Deploy e Produção
