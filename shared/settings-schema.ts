@@ -3,12 +3,12 @@ import { z } from "zod";
 export const LLMModels = [
   // GPT-5 series (latest generation - August 2025)
   "gpt-5",                      // GPT-5 flagship - multimodal, reasoning traces, 128k context, state-of-the-art intelligence
-  "gpt-5-thinking",             // GPT-5 with enhanced reasoning and thought process visibility
+  "gpt-5-thinking",             // Enhanced reasoning with thought process visibility
   "gpt-5-mini",                 // Smaller, faster GPT-5 - 32k context, cost-effective
   "gpt-5-nano",                 // Most cost-effective GPT-5 - 16k context, fastest inference
+  "gpt-5-chat-latest",          // GPT-5 chat variant - optimized for conversational use
 
   // GPT-4o series (multimodal, stable)
-  "chatgpt-4o-latest",          // Dynamic latest 4o - auto-updates to newest version
   "gpt-4o",                     // GPT-4o stable - multimodal, 128k context
   "gpt-4o-mini",                // Smaller 4o - 128k context, cost-effective
   "gpt-4o-2024-11-20",          // GPT-4o November snapshot
@@ -47,6 +47,10 @@ export interface VoiceAgentSettings {
   maxTokens: number;
   topP: number;
   
+  // GPT-5 reasoning parameters
+  reasoningEffort: "low" | "medium" | "high";
+  verbosity: "low" | "medium" | "high";
+  
   // Voice settings
   sttModel: STTModel;
   sttLanguage: string;
@@ -62,10 +66,14 @@ export interface VoiceAgentSettings {
 }
 
 export const defaultSettings: VoiceAgentSettings = {
-  llmModel: "gpt-4o-mini",
+  llmModel: "gpt-5-mini",
   temperature: 0.7,
   maxTokens: 2000,
   topP: 1.0,
+  
+  // GPT-5 reasoning parameters
+  reasoningEffort: "low",
+  verbosity: "medium",
   
   sttModel: "gpt-4o-transcribe",
   sttLanguage: "pt",
@@ -91,12 +99,12 @@ export function isGPT5ThinkingModel(model: LLMModel): boolean {
 // Helper to get model display name with grouping
 export function getModelLabel(model: LLMModel): string {
   if (model.startsWith("gpt-5")) {
-    if (model === "gpt-5-thinking") return `${model} (thinking + reasoning)`;
+    if (model === "gpt-5-chat-latest") return `${model} (conversational, fast)`;
     if (model === "gpt-5-nano") return `${model} (fastest, cheapest)`;
     if (model === "gpt-5-mini") return `${model} (fast, cost-effective)`;
-    return `${model} (latest generation)`;
+    if (model === "gpt-5-thinking") return `${model} (enhanced reasoning, visible thought process)`;
+    return `${model} (latest generation, reasoning)`;
   }
-  if (model === "chatgpt-4o-latest") return `${model} (always updated)`;
   if (model.startsWith("gpt-4o")) return `${model} (multimodal)`;
   return model;
 }
@@ -107,6 +115,11 @@ export const voiceSettingsSchema = z.object({
   temperature: z.number().min(0).max(2),
   maxTokens: z.number().int().min(1).max(4000),
   topP: z.number().min(0).max(1),
+  
+  // GPT-5 reasoning parameters
+  reasoningEffort: z.enum(["low", "medium", "high"]),
+  verbosity: z.enum(["low", "medium", "high"]),
+  
   sttModel: z.enum(STTModels),
   sttLanguage: z.string().min(1),
   ttsModel: z.enum(TTSModels),

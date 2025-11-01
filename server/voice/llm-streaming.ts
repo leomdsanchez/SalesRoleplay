@@ -1,7 +1,8 @@
 import { openai } from "../services/openai";
 import type { 
   ChatCompletionMessageParam,
-  ChatCompletionChunk 
+  ChatCompletionChunk,
+  ChatCompletionCreateParams
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
 import { type VoiceAgentSettings, defaultSettings, isGPT5Model } from "@shared/settings-schema";
@@ -34,7 +35,7 @@ export async function* streamLLMResponse(
 
   // Prepare API parameters based on model type
   const isGPT5 = isGPT5Model(effectiveSettings.llmModel);
-  const apiParams: any = {
+  const baseParams: any = {
     model: effectiveSettings.llmModel,
     messages,
     stream: true,
@@ -46,14 +47,16 @@ export async function* streamLLMResponse(
 
   // Use correct token parameter based on model
   if (isGPT5) {
-    apiParams.max_completion_tokens = effectiveSettings.maxTokens;
-    console.log(`[LLM] Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}`);
+    baseParams.max_completion_tokens = effectiveSettings.maxTokens;
+    baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
+    baseParams.verbosity = effectiveSettings.verbosity;
+    console.log(`[LLM] Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}, reasoning_effort: ${effectiveSettings.reasoningEffort}, verbosity: ${effectiveSettings.verbosity}`);
   } else {
-    apiParams.max_tokens = effectiveSettings.maxTokens;
+    baseParams.max_tokens = effectiveSettings.maxTokens;
     console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}`);
   }
 
-  const stream = await openai.chat.completions.create(apiParams);
+  const stream = await openai.chat.completions.create(baseParams);
 
   let buffer = "";
   let toolCallBuffer: any = null;
@@ -199,6 +202,8 @@ export async function getLLMResponse(
   // Use correct token parameter based on model
   if (isGPT5) {
     apiParams.max_completion_tokens = effectiveSettings.maxTokens;
+    apiParams.reasoning_effort = effectiveSettings.reasoningEffort;
+    apiParams.verbosity = effectiveSettings.verbosity;
   } else {
     apiParams.max_tokens = effectiveSettings.maxTokens;
   }
