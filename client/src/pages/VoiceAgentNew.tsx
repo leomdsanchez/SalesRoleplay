@@ -26,6 +26,7 @@ export default function VoiceAgentNew() {
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
   const [recordingMode, setRecordingMode] = useState<"vad" | "push">("push");
   const [isRecording, setIsRecording] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
@@ -84,10 +85,14 @@ export default function VoiceAgentNew() {
 
   const connectWebSocket = useCallback(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/voice`);
+    const host = window.location.host || "localhost:5000";
+    console.log(`Connecting to WebSocket: ${protocol}//${host}/ws/voice`);
+    const ws = new WebSocket(`${protocol}//${host}/ws/voice`);
 
     ws.onopen = () => {
+      console.log("WebSocket connected");
       setIsConnected(true);
+      setConnectionError("");
       ws.send(
         JSON.stringify({
           type: VoiceMessageType.START_SESSION,
@@ -103,10 +108,15 @@ export default function VoiceAgentNew() {
 
     ws.onerror = (err) => {
       console.error("WebSocket error:", err);
+      setConnectionError("Failed to connect to server");
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log("WebSocket closed:", event.code, event.reason);
       setIsConnected(false);
+      if (event.code !== 1000) {
+        setConnectionError(`Connection closed unexpectedly (${event.code})`);
+      }
     };
 
     wsRef.current = ws;
@@ -407,9 +417,21 @@ export default function VoiceAgentNew() {
             </Button>
           </div>
 
-          {!isConnected && (
-            <p className="text-xs text-red-600 mt-2">
-              Disconnected from server
+          {connectionError && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <strong>Connection Error:</strong> {connectionError}
+              <button
+                onClick={connectWebSocket}
+                className="ml-2 underline hover:no-underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          
+          {!isConnected && !connectionError && isRecording && (
+            <p className="text-xs text-orange-600 mt-2">
+              ⚠️ Not connected to server
             </p>
           )}
         </div>
