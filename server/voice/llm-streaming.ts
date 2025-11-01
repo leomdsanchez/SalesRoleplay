@@ -4,6 +4,7 @@ import type {
   ChatCompletionChunk 
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
+import { type VoiceAgentSettings, defaultSettings } from "@shared/settings-schema";
 
 export interface StreamChunk {
   text?: string;
@@ -22,18 +23,22 @@ export interface StreamChunk {
  */
 export async function* streamLLMResponse(
   userMessage: string,
-  conversationHistory: ChatCompletionMessageParam[] = []
+  conversationHistory: ChatCompletionMessageParam[] = [],
+  settings?: VoiceAgentSettings
 ): AsyncGenerator<StreamChunk> {
+  const effectiveSettings = settings || defaultSettings;
   const messages: ChatCompletionMessageParam[] = [
     ...conversationHistory,
     { role: "user", content: userMessage },
   ];
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o-mini", // Fast and cheap, use gpt-4o for better quality
+    model: effectiveSettings.llmModel,
     messages,
     stream: true,
-    temperature: 0.7,
+    temperature: effectiveSettings.temperature,
+    max_tokens: effectiveSettings.maxTokens,
+    top_p: effectiveSettings.topP,
     tools: voiceAgentTools,
     tool_choice: "auto",
   });
