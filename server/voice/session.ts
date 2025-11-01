@@ -251,8 +251,23 @@ export class VoiceSession {
         }
       }
     } catch (error) {
-      console.error("Voice processing error:", error);
-      this.sendError(`Processing failed: ${error}`);
+      console.error("[VoiceSession] Processing error:", error);
+      
+      // Send more specific error messages based on error type
+      let errorMessage = "Processing failed";
+      if (error instanceof Error) {
+        if (error.message.includes("max_tokens") || error.message.includes("max_completion_tokens")) {
+          errorMessage = "Model configuration error - please check your settings";
+        } else if (error.message.includes("transcribe")) {
+          errorMessage = "Speech recognition failed - please try again";
+        } else if (error.message.includes("speech")) {
+          errorMessage = "Audio generation failed - continuing with text only";
+        } else {
+          errorMessage = `Processing error: ${error.message}`;
+        }
+      }
+      
+      this.sendError(errorMessage);
     } finally {
       this.isProcessing = false;
     }

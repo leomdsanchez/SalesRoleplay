@@ -18,6 +18,10 @@ export interface StreamChunk {
   };
 }
 
+// Constants for better maintainability
+const SENTENCE_ENDINGS = /[.!?]\s+/;
+const WORD_SEPARATOR = " ";
+
 /**
  * Stream LLM response with sentence-based chunking
  * Yields complete sentences for optimal TTS processing
@@ -27,6 +31,14 @@ export async function* streamLLMResponse(
   conversationHistory: ChatCompletionMessageParam[] = [],
   settings?: VoiceAgentSettings
 ): AsyncGenerator<StreamChunk> {
+  // Input validation (KISS principle - simple but effective)
+  if (!userMessage?.trim()) {
+    throw new Error("User message cannot be empty");
+  }
+  if (userMessage.length > 10000) {
+    throw new Error("User message too long (max 10000 characters)");
+  }
+
   const effectiveSettings = settings || defaultSettings;
   const messages: ChatCompletionMessageParam[] = [
     ...conversationHistory,
@@ -56,7 +68,7 @@ export async function* streamLLMResponse(
     console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}`);
   }
 
-  const stream = await openai.chat.completions.create(baseParams);
+  const stream = await openai.chat.completions.create(baseParams) as unknown as AsyncIterable<ChatCompletionChunk>;
 
   let buffer = "";
   let toolCallBuffer: any = null;
@@ -101,23 +113,22 @@ export async function* streamLLMResponse(
     buffer += content;
     wordBuffer += content;
 
-    // Stream text word-by-word for smooth UI
-    if (wordBuffer.includes(" ")) {
-      const words = wordBuffer.split(" ");
-      const completeWords = words.slice(0, -1).join(" ");
-      wordBuffer = words[words.length - 1];
-      
-      if (completeWords.trim()) {
+    // Stream text word-by-word for smooth UI (simplified)
+    const spaceIndex = wordBuffer.indexOf(WORD_SEPARATOR);
+    if (spaceIndex > 0) {
+      const wordsToSend = wordBuffer.slice(0, spaceIndex).trim();
+      if (wordsToSend) {
         yield {
-          text: completeWords,
+          text: wordsToSend + WORD_SEPARATOR,
           isComplete: false,
           isSentence: false,
         };
       }
+      wordBuffer = wordBuffer.slice(spaceIndex + 1);
     }
 
     // Check if we have a complete sentence (for TTS audio generation)
-    const match = buffer.match(sentenceEndings);
+    const match = buffer.match(SENTENCE_ENDINGS);
     if (match) {
       // Flush remaining word buffer
       if (wordBuffer.trim()) {
@@ -185,6 +196,14 @@ export async function getLLMResponse(
   conversationHistory: ChatCompletionMessageParam[] = [],
   settings?: VoiceAgentSettings
 ): Promise<string> {
+  // Input validation
+  if (!userMessage?.trim()) {
+    throw new Error("User message cannot be empty");
+  }
+  if (userMessage.length > 10000) {
+    throw new Error("User message too long (max 10000 characters)");
+  }
+
   const effectiveSettings = settings || defaultSettings;
   const messages: ChatCompletionMessageParam[] = [
     ...conversationHistory,

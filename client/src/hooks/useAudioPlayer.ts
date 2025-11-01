@@ -123,6 +123,7 @@ export function useAudioPlayer() {
       const audio = audioRef.current;
 
       console.log(`[AudioPlayer] Enqueue (paused: ${audio?.paused}, queue: ${queueRef.current.length})`);
+
       queueRef.current.push(audioBase64);
       setQueueLength(queueRef.current.length);
 
