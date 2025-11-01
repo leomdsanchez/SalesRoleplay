@@ -82,7 +82,14 @@ export default function VoiceAgentNew() {
         
         // Stop recording - this will trigger ondataavailable with complete file
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-          console.log("Stopping recording - will get complete audio file");
+          console.log("Stopping recording - will send audio");
+          
+          // Set flag to allow sending
+          const shouldSendRef = (mediaRecorderRef.current as any).shouldSendRef;
+          if (shouldSendRef) {
+            shouldSendRef.current = true;
+          }
+          
           mediaRecorderRef.current.stop();
           
           // After stop, restart for next recording
@@ -257,21 +264,20 @@ export default function VoiceAgentNew() {
 
       // Store recording mode in ref to avoid stale closure
       const recordingModeRef = { current: recordingMode };
-      const pushActiveRef = { current: false };
+      const shouldSendRef = { current: false }; // Flag to control if we should send
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log(`ondataavailable fired: size=${event.data.size}, mode=${recordingModeRef.current}`);
+        console.log(`ondataavailable fired: size=${event.data.size}, shouldSend=${shouldSendRef.current}`);
         
-        if (event.data.size > 0) {
-          // In push mode, we get ONE complete valid webm file
+        if (event.data.size > 0 && shouldSendRef.current) {
+          // Only send if shouldSend flag is true (user released space)
           if (recordingModeRef.current === "push") {
-            console.log(`Received complete webm file: ${event.data.size} bytes`);
+            console.log(`Sending complete webm file: ${event.data.size} bytes`);
             
-            // Send immediately (don't accumulate)
             const reader = new FileReader();
             reader.onloadend = () => {
               const base64 = (reader.result as string).split(",")[1];
-              console.log(`Sending complete webm to server (base64 length: ${base64.length})`);
+              console.log(`Sent to server (base64 length: ${base64.length})`);
               wsRef.current?.send(
                 JSON.stringify({
                   type: VoiceMessageType.AUDIO_CHUNK,
@@ -280,6 +286,9 @@ export default function VoiceAgentNew() {
               );
             };
             reader.readAsDataURL(event.data);
+            
+            // Reset flag
+            shouldSendRef.current = false;
           }
           // For VAD mode, send immediately when speaking
           else if (recordingModeRef.current === "vad" && isSpeaking) {
@@ -299,8 +308,8 @@ export default function VoiceAgentNew() {
         }
       };
 
-      // Store ref to update push state
-      (mediaRecorder as any).pushActiveRef = pushActiveRef;
+      // Store refs in mediaRecorder for access in event handlers
+      (mediaRecorder as any).shouldSendRef = shouldSendRef;
       mediaRecorderRef.current = mediaRecorder;
 
       console.log(`MediaRecorder ready in ${recordingMode} mode`);
