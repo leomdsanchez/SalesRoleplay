@@ -15,6 +15,7 @@ export class VoiceSession {
   private conversationHistory: ChatCompletionMessageParam[] = [];
   private audioBuffer: Buffer[] = [];
   private isProcessing = false;
+  private shouldCancelStreaming = false;
   private userId?: string;
   private voice: TTSVoice = "alloy";
 
@@ -53,6 +54,11 @@ export class VoiceSession {
         await this.handleAudioChunk(message as AudioChunkMessage);
         break;
 
+      case VoiceMessageType.CANCEL_STREAMING:
+        console.log("[VoiceSession] Cancelling streaming");
+        this.shouldCancelStreaming = true;
+        break;
+
       case VoiceMessageType.END_SESSION:
         this.ws.close();
         break;
@@ -80,6 +86,7 @@ export class VoiceSession {
     }
 
     this.isProcessing = true;
+    this.shouldCancelStreaming = false; // Reset flag for new request
 
     try {
       // Step 1: Speech-to-Text
@@ -103,6 +110,12 @@ export class VoiceSession {
         userText,
         this.conversationHistory
       )) {
+        // Check if streaming should be cancelled
+        if (this.shouldCancelStreaming) {
+          console.log("[VoiceSession] Streaming cancelled by user");
+          break;
+        }
+
         // Handle tool calls
         if (chunk.toolCall) {
           toolCalls.push(chunk.toolCall);
