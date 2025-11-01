@@ -2,14 +2,28 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
+import SqliteStore from "better-sqlite3-session-store";
+import Database from "better-sqlite3";
 import { storage } from "../storage";
 import bcrypt from "bcrypt";
 import { type User } from "@shared/schema";
+import path from "path";
 
 export function setupAuth(app: Express) {
+  // Create session store with SQLite
+  const SessionStore = SqliteStore(session);
+  const sessionDb = new Database(path.join(process.cwd(), "data", "sessions.db"));
+
   // Session config
   app.use(
     session({
+      store: new SessionStore({
+        client: sessionDb,
+        expired: {
+          clear: true,
+          intervalMs: 900000, // Clean expired sessions every 15min
+        },
+      }),
       secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
       resave: false,
       saveUninitialized: false,
@@ -17,6 +31,7 @@ export function setupAuth(app: Express) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        sameSite: "lax",
       },
     })
   );

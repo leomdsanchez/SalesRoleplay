@@ -22,6 +22,7 @@ router.post("/register", validate(insertUserSchema), async (req, res, next) => {
     // Auto-login after registration
     req.login(user, (err) => {
       if (err) return next(err);
+      console.log(`User ${user.username} registered and logged in, session ID: ${req.sessionID}`);
       res.json({ 
         id: user.id, 
         username: user.username 
@@ -42,6 +43,7 @@ router.post("/login", validate(insertUserSchema), (req, res, next) => {
     
     req.login(user, (err) => {
       if (err) return next(err);
+      console.log(`User ${user.username} logged in, session ID: ${req.sessionID}`);
       res.json({ 
         id: user.id, 
         username: user.username 
