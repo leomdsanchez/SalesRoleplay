@@ -21,6 +21,7 @@ export interface UseVoiceWebSocketReturn {
   connect: () => void;
   disconnect: () => void;
   sendAudio: (audioBlob: Blob) => Promise<void>;
+  cancelStreaming: () => void;
 }
 
 /**
@@ -150,6 +151,20 @@ export function useVoiceWebSocket(
     };
   }, [disconnect]);
 
+  const cancelStreaming = useCallback(() => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    console.log("[VoiceWS] Sending cancel streaming");
+    wsRef.current.send(
+      JSON.stringify({
+        type: VoiceMessageType.CANCEL_STREAMING,
+        data: {},
+      })
+    );
+  }, []);
+
   const sendAudio = useCallback(async (audioBlob: Blob): Promise<void> => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn("[VoiceWS] Cannot send audio, not connected");
@@ -192,5 +207,6 @@ export function useVoiceWebSocket(
     connect,
     disconnect,
     sendAudio,
+    cancelStreaming,
   };
 }

@@ -4,6 +4,7 @@ export enum VoiceMessageType {
   AUDIO_CHUNK = "audio_chunk",
   START_SESSION = "start_session",
   END_SESSION = "end_session",
+  CANCEL_STREAMING = "cancel_streaming",
   
   // Server → Client
   TRANSCRIPT = "transcript",

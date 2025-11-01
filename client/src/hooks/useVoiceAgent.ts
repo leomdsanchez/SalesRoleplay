@@ -90,7 +90,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   );
 
   // WebSocket
-  const { isConnected, connect, disconnect, sendAudio, error: wsError } = useVoiceWebSocket(
+  const { isConnected, connect, disconnect, sendAudio, cancelStreaming, error: wsError } = useVoiceWebSocket(
     userId,
     wsCallbacks
   );
@@ -122,9 +122,10 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     onAudioReady: handleAudioReady,
     enabled: sessionActive,
     onRecordingStart: () => {
-      console.log("[VoiceAgent] Clearing audio queue (new recording)");
-      clearQueueRef.current();
-      setStreamingText(""); // Also clear streaming text
+      console.log("[VoiceAgent] New recording - cancelling streaming and clearing queue");
+      cancelStreaming(); // Cancel server streaming
+      clearQueueRef.current(); // Clear audio queue
+      setStreamingText(""); // Clear streaming text
     },
   });
 
