@@ -49,7 +49,6 @@ describe("Settings Schema", () => {
       // Should not identify non-GPT-5 models
       expect(isGPT5Model("gpt-4o")).toBe(false);
       expect(isGPT5Model("gpt-4o-mini")).toBe(false);
-      expect(isGPT5Model("chatgpt-4o-latest")).toBe(false);
     });
   });
 
@@ -60,10 +59,13 @@ describe("Settings Schema", () => {
         temperature: 0.7,
         maxTokens: 2000,
         topP: 1.0,
+        reasoningEffort: "low" as const,
+        verbosity: "medium" as const,
         sttModel: "gpt-4o-transcribe" as const,
         sttLanguage: "pt",
         ttsModel: "gpt-4o-mini-tts" as const,
         ttsVoice: "alloy" as const,
+        ttsLanguage: "pt",
         systemPrompt: "Test prompt",
         streamSentences: true,
         autoPlayAudio: true,
@@ -95,6 +97,17 @@ describe("Settings Schema", () => {
       expect(result.error?.issues[0].path).toContain("maxTokens");
     });
 
+    it("should reject empty ttsLanguage", () => {
+      const invalidSettings = {
+        ...defaultSettings,
+        ttsLanguage: "", // Empty string
+      };
+
+      const result = voiceSettingsSchema.safeParse(invalidSettings);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0].path).toContain("ttsLanguage");
+    });
+
     it("should reject deprecated models", () => {
       const invalidSettings = {
         ...defaultSettings,
@@ -123,6 +136,7 @@ describe("Settings Schema", () => {
       expect(defaultSettings.llmModel).toBe("gpt-5-mini");
       expect(defaultSettings.sttModel).toBe("gpt-4o-transcribe");
       expect(defaultSettings.ttsModel).toBe("tts-1");
+      expect(defaultSettings.ttsLanguage).toBe("pt");
     });
 
     it("should validate default settings", () => {

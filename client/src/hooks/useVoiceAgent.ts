@@ -3,6 +3,7 @@ import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
+import { useSpeechRecognition } from "./useSpeechRecognition";
 
 export interface Message {
   role: "user" | "assistant";
@@ -11,6 +12,7 @@ export interface Message {
 
 export interface UseVoiceAgentOptions {
   userId: string | undefined;
+  sttLanguage?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface UseVoiceAgentOptions {
  * 
  * NÃO inicia automaticamente - usuário deve chamar startSession()
  */
-export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
+export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptions) {
   const [sessionActive, setSessionActive] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
@@ -33,6 +35,20 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   useEffect(() => {
     clearQueueRef.current = clearQueue;
   }, [clearQueue]);
+
+  // Real-time speech recognition
+  const { isListening } = useSpeechRecognition({
+    enabled: isRecording,
+    language: sttLanguage === "pt" ? "pt-BR" : sttLanguage, // Map to BCP 47
+    onResult: (transcript, isFinal) => {
+      if (!isFinal) {
+        setCurrentTranscript(transcript);
+      }
+    },
+    onError: (error) => {
+      console.error("[VoiceAgent] Speech recognition error:", error);
+    },
+  });
 
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean) => {

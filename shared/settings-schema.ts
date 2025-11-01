@@ -55,6 +55,7 @@ export interface VoiceAgentSettings {
   sttLanguage: string;
   ttsModel: TTSModel;
   ttsVoice: TTSVoice;
+  ttsLanguage: string;
   
   // Prompt
   systemPrompt: string;
@@ -78,6 +79,7 @@ export const defaultSettings: VoiceAgentSettings = {
   sttLanguage: "pt",
   ttsModel: "tts-1", // More reliable than gpt-4o-mini-tts
   ttsVoice: "alloy",
+  ttsLanguage: "pt",
   
   systemPrompt: "Você é um assistente virtual prestativo e amigável.",
   
@@ -117,6 +119,7 @@ export const voiceSettingsSchema = z.object({
   sttLanguage: z.string().min(1),
   ttsModel: z.enum(TTSModels),
   ttsVoice: z.enum(TTSVoices),
+  ttsLanguage: z.string().min(1),
   systemPrompt: z.string().min(1).max(2000),
   streamSentences: z.boolean(),
   autoPlayAudio: z.boolean(),
