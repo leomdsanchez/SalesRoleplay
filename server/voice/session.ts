@@ -139,22 +139,25 @@ export class VoiceSession {
 
         // Handle text chunks
         if (chunk.text) {
-          // Send text chunk to client
+          // Send text chunk to client (for UI streaming)
           this.send({
             type: VoiceMessageType.AGENT_TEXT,
             data: { text: chunk.text, isComplete: chunk.isComplete },
           });
 
-          textChunks.push(chunk.text);
+          // Accumulate for history (only sentences)
+          if (chunk.isSentence) {
+            textChunks.push(chunk.text);
+            
+            // Step 3: Text-to-Speech (only for complete sentences)
+            const audioBuffer = await textToSpeech(chunk.text, this.voice);
+            const audioBase64 = audioBuffer.toString("base64");
 
-          // Step 3: Text-to-Speech (parallel processing)
-          const audioBuffer = await textToSpeech(chunk.text, this.voice);
-          const audioBase64 = audioBuffer.toString("base64");
-
-          this.send({
-            type: VoiceMessageType.AGENT_AUDIO,
-            data: { audio: audioBase64, format: "mp3" },
-          });
+            this.send({
+              type: VoiceMessageType.AGENT_AUDIO,
+              data: { audio: audioBase64, format: "mp3" },
+            });
+          }
         }
       }
 
