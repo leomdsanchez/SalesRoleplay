@@ -31,7 +31,10 @@ export async function transcribeAudio(
     tempFilePath = path.join(tmpDir, `${randomUUID()}.${ext}`);
     fs.writeFileSync(tempFilePath, audioBuffer);
     
-    console.log(`Temp file saved: ${tempFilePath}, size: ${fs.statSync(tempFilePath).size}`);
+    const fileStats = fs.statSync(tempFilePath);
+    const firstBytes = audioBuffer.slice(0, 20).toString('hex');
+    console.log(`Temp file saved: ${tempFilePath}`);
+    console.log(`File size: ${fileStats.size}, First bytes (hex): ${firstBytes}`);
 
     // Use createReadStream (this is what works in production!)
     const transcription = await openai.audio.transcriptions.create({
