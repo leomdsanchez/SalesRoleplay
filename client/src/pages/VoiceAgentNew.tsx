@@ -61,18 +61,15 @@ export default function VoiceAgentNew() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !e.repeat && !isPushToTalkActive) {
         e.preventDefault();
-        console.log("Space pressed - starting recording");
+        console.log("Space pressed - start recording");
         setIsPushToTalkActive(true);
-        audioChunksRef.current = []; // Clear previous chunks
+        audioChunksRef.current = [];
         setChunkCount(0);
         
-        // Update MediaRecorder ref
-        if (mediaRecorderRef.current) {
-          const pushActiveRef = (mediaRecorderRef.current as any).pushActiveRef;
-          if (pushActiveRef) {
-            pushActiveRef.current = true;
-            console.log("Set pushActiveRef to true");
-          }
+        // Start a NEW recording session
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+          console.log("Starting new recording");
+          mediaRecorderRef.current.start();
         }
       }
     };
@@ -80,20 +77,21 @@ export default function VoiceAgentNew() {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space" && isPushToTalkActive) {
         e.preventDefault();
-        console.log("Space released - sending audio");
-        
-        // Update MediaRecorder ref
-        if (mediaRecorderRef.current) {
-          const pushActiveRef = (mediaRecorderRef.current as any).pushActiveRef;
-          if (pushActiveRef) {
-            pushActiveRef.current = false;
-            console.log("Set pushActiveRef to false");
-          }
-        }
-        
+        console.log("Space released - stopping recording");
         setIsPushToTalkActive(false);
-        // Send accumulated audio
-        sendAccumulatedAudio();
+        
+        // Stop recording - this will trigger ondataavailable with complete file
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+          console.log("Stopping recording - will get complete audio file");
+          mediaRecorderRef.current.stop();
+          
+          // After stop, restart for next recording
+          setTimeout(() => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+              mediaRecorderRef.current.start();
+            }
+          }, 100);
+        }
       }
     };
 
@@ -262,15 +260,26 @@ export default function VoiceAgentNew() {
       const pushActiveRef = { current: false };
 
       mediaRecorder.ondataavailable = (event) => {
-        const isActive = pushActiveRef.current;
-        console.log(`ondataavailable fired: size=${event.data.size}, mode=${recordingModeRef.current}, pushActive=${isActive}, vad=${isSpeaking}`);
+        console.log(`ondataavailable fired: size=${event.data.size}, mode=${recordingModeRef.current}`);
         
         if (event.data.size > 0) {
-          // Accumulate chunks ONLY while push-to-talk is active
-          if (recordingModeRef.current === "push" && isActive) {
-            audioChunksRef.current.push(event.data);
-            setChunkCount(audioChunksRef.current.length);
-            console.log(`Accumulated chunk: ${event.data.size} bytes, total: ${audioChunksRef.current.length}`);
+          // In push mode, we get ONE complete valid webm file
+          if (recordingModeRef.current === "push") {
+            console.log(`Received complete webm file: ${event.data.size} bytes`);
+            
+            // Send immediately (don't accumulate)
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = (reader.result as string).split(",")[1];
+              console.log(`Sending complete webm to server (base64 length: ${base64.length})`);
+              wsRef.current?.send(
+                JSON.stringify({
+                  type: VoiceMessageType.AUDIO_CHUNK,
+                  data: { audio: base64, format: "webm" },
+                })
+              );
+            };
+            reader.readAsDataURL(event.data);
           }
           // For VAD mode, send immediately when speaking
           else if (recordingModeRef.current === "vad" && isSpeaking) {
@@ -294,8 +303,9 @@ export default function VoiceAgentNew() {
       (mediaRecorder as any).pushActiveRef = pushActiveRef;
       mediaRecorderRef.current = mediaRecorder;
 
-      console.log(`Starting MediaRecorder in ${recordingMode} mode`);
-      mediaRecorder.start(200); // Capture chunks every 200ms
+      console.log(`MediaRecorder ready in ${recordingMode} mode`);
+      // DON'T start yet - wait for space key in push-to-talk mode
+      // User will start/stop with space bar
       setIsRecording(true);
     } catch (err) {
       console.error("Recording error:", err);
