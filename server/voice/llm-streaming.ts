@@ -4,7 +4,7 @@ import type {
   ChatCompletionChunk 
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
-import { type VoiceAgentSettings, defaultSettings } from "@shared/settings-schema";
+import { type VoiceAgentSettings, defaultSettings, isGPT5Model } from "@shared/settings-schema";
 
 export interface StreamChunk {
   text?: string;
@@ -32,16 +32,28 @@ export async function* streamLLMResponse(
     { role: "user", content: userMessage },
   ];
 
-  const stream = await openai.chat.completions.create({
+  // Prepare API parameters based on model type
+  const isGPT5 = isGPT5Model(effectiveSettings.llmModel);
+  const apiParams: any = {
     model: effectiveSettings.llmModel,
     messages,
     stream: true,
     temperature: effectiveSettings.temperature,
-    max_tokens: effectiveSettings.maxTokens,
     top_p: effectiveSettings.topP,
     tools: voiceAgentTools,
     tool_choice: "auto",
-  });
+  };
+
+  // Use correct token parameter based on model
+  if (isGPT5) {
+    apiParams.max_completion_tokens = effectiveSettings.maxTokens;
+    console.log(`[LLM] Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}`);
+  } else {
+    apiParams.max_tokens = effectiveSettings.maxTokens;
+    console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}`);
+  }
+
+  const stream = await openai.chat.completions.create(apiParams);
 
   let buffer = "";
   let toolCallBuffer: any = null;
@@ -165,23 +177,33 @@ export async function* streamLLMResponse(
   };
 }
 
-/**
- * Simple non-streaming LLM call (for tool responses, etc.)
- */
 export async function getLLMResponse(
   userMessage: string,
-  conversationHistory: ChatCompletionMessageParam[] = []
+  conversationHistory: ChatCompletionMessageParam[] = [],
+  settings?: VoiceAgentSettings
 ): Promise<string> {
+  const effectiveSettings = settings || defaultSettings;
   const messages: ChatCompletionMessageParam[] = [
     ...conversationHistory,
     { role: "user", content: userMessage },
   ];
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+  // Prepare API parameters based on model type
+  const isGPT5 = isGPT5Model(effectiveSettings.llmModel);
+  const apiParams: any = {
+    model: effectiveSettings.llmModel,
     messages,
-    temperature: 0.7,
-  });
+    temperature: effectiveSettings.temperature,
+  };
+
+  // Use correct token parameter based on model
+  if (isGPT5) {
+    apiParams.max_completion_tokens = effectiveSettings.maxTokens;
+  } else {
+    apiParams.max_tokens = effectiveSettings.maxTokens;
+  }
+
+  const response = await openai.chat.completions.create(apiParams);
 
   return response.choices[0]?.message?.content || "";
 }
