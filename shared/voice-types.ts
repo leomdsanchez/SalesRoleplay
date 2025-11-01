@@ -51,6 +51,7 @@ export interface AgentTextMessage extends VoiceMessage {
   data: {
     text: string;
     isComplete: boolean;
+    isSentence?: boolean; // true = complete sentence, false = word chunk for streaming
   };
 }
 

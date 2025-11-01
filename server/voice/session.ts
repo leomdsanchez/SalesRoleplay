@@ -142,7 +142,11 @@ export class VoiceSession {
           // Send text chunk to client (for UI streaming)
           this.send({
             type: VoiceMessageType.AGENT_TEXT,
-            data: { text: chunk.text, isComplete: chunk.isComplete },
+            data: { 
+              text: chunk.text, 
+              isComplete: chunk.isComplete,
+              isSentence: chunk.isSentence 
+            },
           });
 
           // Accumulate for history (only sentences)

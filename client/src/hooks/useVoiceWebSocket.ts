@@ -9,7 +9,7 @@ import {
 
 export interface VoiceWebSocketCallbacks {
   onTranscript?: (text: string, isFinal: boolean) => void;
-  onAgentText?: (text: string, isComplete: boolean) => void;
+  onAgentText?: (text: string, isComplete: boolean, isSentence?: boolean) => void;
   onAgentAudio?: (audioBase64: string) => void;
   onSessionStarted?: () => void;
   onError?: (error: string) => void;
@@ -46,7 +46,7 @@ export function useVoiceWebSocket(
 
         case VoiceMessageType.AGENT_TEXT:
           const textMsg = message as AgentTextMessage;
-          callbacks.onAgentText?.(textMsg.data.text, textMsg.data.isComplete);
+          callbacks.onAgentText?.(textMsg.data.text, textMsg.data.isComplete, textMsg.data.isSentence);
           break;
 
         case VoiceMessageType.AGENT_AUDIO:

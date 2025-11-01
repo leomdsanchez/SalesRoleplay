@@ -46,17 +46,22 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     }
   }, []);
 
-  const onAgentText = useCallback((text: string, isComplete: boolean) => {
-    console.log(`[VoiceAgent] Agent text: ${text} (complete: ${isComplete})`);
+  const onAgentText = useCallback((text: string, isComplete: boolean, isSentence?: boolean) => {
+    console.log(`[VoiceAgent] Agent text: "${text}" (complete: ${isComplete}, sentence: ${isSentence})`);
     
     if (isComplete) {
-      // Use functional form to avoid dependency on streamingText
+      // Final message - add streaming text to messages and clear
       setStreamingText((current) => {
-        setMessages((prev) => [...prev, { role: "assistant", content: current + " " + text }]);
-        return ""; // Clear streaming text
+        setMessages((prev) => [...prev, { role: "assistant", content: current }]);
+        return "";
       });
+    } else if (isSentence) {
+      // Complete sentence - DON'T add to streaming (already there from words), just save to history
+      // The sentence is already displayed via word chunks, so do nothing here
+      console.log("[VoiceAgent] Sentence complete (already displayed via words)");
     } else {
-      setStreamingText((prev) => prev + " " + text);
+      // Word chunk - add to streaming text for real-time display
+      setStreamingText((prev) => prev === "" ? text : prev + " " + text);
     }
   }, []);
 
