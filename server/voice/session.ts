@@ -33,17 +33,17 @@ export class VoiceSession {
         const message: VoiceMessage = JSON.parse(data.toString());
         await this.handleMessage(message);
       } catch (error) {
-        console.error("Message handling error:", error);
+        log.error(`Message handling error: ${error}`);
         this.sendError("Invalid message format");
       }
     });
 
     this.ws.on("close", () => {
-      console.log("Voice session closed");
+      log.ws("Voice session closed");
     });
 
     this.ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
+      log.error(`WebSocket error: ${error}`);
     });
   }
 
@@ -58,7 +58,7 @@ export class VoiceSession {
         break;
 
       case VoiceMessageType.CANCEL_STREAMING:
-        console.log("[VoiceSession] Cancelling streaming");
+        log.voice("Cancelling streaming");
         this.shouldCancelStreaming = true;
         break;
 
@@ -77,10 +77,7 @@ export class VoiceSession {
     // Load user settings
     if (this.userId) {
       this.settings = settingsStorage.get(this.userId);
-      console.log(`[VoiceSession] Loaded settings for user ${this.userId}:`, {
-        llmModel: this.settings.llmModel,
-        ttsVoice: this.settings.ttsVoice,
-      });
+      log.voice(`Loaded settings for user ${this.userId}: llmModel=${this.settings.llmModel}, ttsVoice=${this.settings.ttsVoice}`);
     }
     
     this.send({
@@ -132,7 +129,7 @@ export class VoiceSession {
       )) {
         // Check if streaming should be cancelled
         if (this.shouldCancelStreaming) {
-          console.log("[VoiceSession] Streaming cancelled by user");
+          log.voice("Streaming cancelled by user");
           break;
         }
 
@@ -189,15 +186,15 @@ export class VoiceSession {
             // Step 3: Text-to-Speech (only for complete sentences)
             const ttsVoice = this.settings?.ttsVoice || "alloy";
             const ttsModel = this.settings?.ttsModel || "tts-1";
-            console.log(`[VoiceSession] Generating TTS for sentence: "${chunk.text}" (voice: ${ttsVoice}, model: ${ttsModel})`);
+            log.voice(`Generating TTS for sentence: "${chunk.text}" (voice: ${ttsVoice}, model: ${ttsModel})`);
             const audioBuffer = await textToSpeech(chunk.text, ttsVoice, ttsModel);
             const audioBase64 = audioBuffer.toString("base64");
             
-            console.log(`[VoiceSession] TTS generated: ${audioBuffer.length} bytes, base64 length: ${audioBase64.length}`);
+            log.voice(`TTS generated: ${audioBuffer.length} bytes, base64 length: ${audioBase64.length}`);
             
             // Validate base64
             if (!audioBase64 || audioBase64.length < 100) {
-              console.error(`[VoiceSession] Invalid audio data: base64 length ${audioBase64.length}`);
+              log.error(`Invalid audio data: base64 length ${audioBase64.length}`);
               // Send error message to client
               this.send({
                 type: VoiceMessageType.ERROR,
@@ -211,7 +208,7 @@ export class VoiceSession {
 
             // Validate that it's proper base64
             if (!/^[A-Za-z0-9+/]*={0,2}$/.test(audioBase64)) {
-              console.error(`[VoiceSession] Invalid base64 format`);
+              log.error(`Invalid base64 format`);
               this.send({
                 type: VoiceMessageType.ERROR,
                 data: { 
@@ -227,7 +224,7 @@ export class VoiceSession {
               data: { audio: audioBase64, format: "mp3" },
             });
             
-            console.log(`[VoiceSession] Audio sent to client (${audioBase64.length} chars)`);
+            log.voice(`Audio sent to client (${audioBase64.length} chars)`);
           }
         }
       }
