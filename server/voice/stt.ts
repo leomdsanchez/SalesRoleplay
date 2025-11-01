@@ -10,15 +10,23 @@ export interface STTResult {
  */
 export async function transcribeAudio(
   audioBuffer: Buffer,
-  format: "webm" | "mp3" | "wav" = "webm"
+  format: "webm" | "mp3" | "wav" = "wav"
 ): Promise<STTResult> {
   try {
     console.log(`Transcribing audio: ${audioBuffer.length} bytes, format: ${format}`);
     
+    // Map format to proper MIME type and extension
+    const mimeTypes = {
+      wav: { type: "audio/wav", ext: "wav" },
+      mp3: { type: "audio/mp3", ext: "mp3" },
+      webm: { type: "audio/webm", ext: "webm" },
+    };
+    
+    const { type, ext } = mimeTypes[format] || mimeTypes.wav;
+    
     // Convert buffer to File using OpenAI's helper
-    // Use .webm extension explicitly
-    const file = await toFile(audioBuffer, `audio.webm`, {
-      type: "audio/webm",
+    const file = await toFile(audioBuffer, `audio.${ext}`, {
+      type: type,
     });
 
     console.log(`File created: name=${file.name}, type=${file.type}, size=${file.size}`);
