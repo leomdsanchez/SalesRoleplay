@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
@@ -23,43 +23,55 @@ export function useVoiceAgent({ userId, enabled }: UseVoiceAgentOptions) {
   const [streamingText, setStreamingText] = useState("");
   const [audioQueue, setAudioQueue] = useState<string[]>([]);
 
-  // WebSocket callbacks
-  const wsCallbacks = {
-    onTranscript: useCallback((text: string, isFinal: boolean) => {
-      console.log(`[VoiceAgent] Transcript: ${text} (final: ${isFinal})`);
-      
-      if (isFinal) {
-        setMessages((prev) => [...prev, { role: "user", content: text }]);
-        setCurrentTranscript("");
-      } else {
-        setCurrentTranscript(text);
-      }
-    }, []),
+  // WebSocket callbacks (memoized to prevent re-creation)
+  const onTranscript = useCallback((text: string, isFinal: boolean) => {
+    console.log(`[VoiceAgent] Transcript: ${text} (final: ${isFinal})`);
+    
+    if (isFinal) {
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      setCurrentTranscript("");
+    } else {
+      setCurrentTranscript(text);
+    }
+  }, []);
 
-    onAgentText: useCallback((text: string, isComplete: boolean) => {
-      console.log(`[VoiceAgent] Agent text: ${text} (complete: ${isComplete})`);
-      
-      if (isComplete) {
-        setMessages((prev) => [...prev, { role: "assistant", content: streamingText + text }]);
-        setStreamingText("");
-      } else {
-        setStreamingText((prev) => prev + text);
-      }
-    }, [streamingText]),
+  const onAgentText = useCallback((text: string, isComplete: boolean) => {
+    console.log(`[VoiceAgent] Agent text: ${text} (complete: ${isComplete})`);
+    
+    if (isComplete) {
+      // Use functional form to avoid dependency on streamingText
+      setStreamingText((current) => {
+        setMessages((prev) => [...prev, { role: "assistant", content: current + text }]);
+        return ""; // Clear streaming text
+      });
+    } else {
+      setStreamingText((prev) => prev + text);
+    }
+  }, []);
 
-    onAgentAudio: useCallback((audioBase64: string) => {
-      console.log(`[VoiceAgent] Agent audio chunk received`);
-      setAudioQueue((prev) => [...prev, audioBase64]);
-    }, []),
+  const onAgentAudio = useCallback((audioBase64: string) => {
+    console.log(`[VoiceAgent] Agent audio chunk received`);
+    setAudioQueue((prev) => [...prev, audioBase64]);
+  }, []);
 
-    onSessionStarted: useCallback(() => {
-      console.log("[VoiceAgent] Session started");
-    }, []),
+  const onSessionStarted = useCallback(() => {
+    console.log("[VoiceAgent] Session started");
+  }, []);
 
-    onError: useCallback((error: string) => {
-      console.error("[VoiceAgent] Error:", error);
-    }, []),
-  };
+  const onError = useCallback((error: string) => {
+    console.error("[VoiceAgent] Error:", error);
+  }, []);
+
+  const wsCallbacks = useMemo(
+    () => ({
+      onTranscript,
+      onAgentText,
+      onAgentAudio,
+      onSessionStarted,
+      onError,
+    }),
+    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError]
+  );
 
   // WebSocket
   const { isConnected, connect, disconnect, sendAudio, error: wsError } = useVoiceWebSocket(
