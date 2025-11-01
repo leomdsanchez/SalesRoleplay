@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
@@ -27,6 +27,12 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   
   // Audio player
   const { isPlaying, enqueueAudio, clearQueue } = useAudioPlayer();
+  const clearQueueRef = useRef(clearQueue);
+  
+  // Keep ref updated
+  useEffect(() => {
+    clearQueueRef.current = clearQueue;
+  }, [clearQueue]);
 
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -110,6 +116,11 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   } = usePushToTalkRecorder({
     onAudioReady: handleAudioReady,
     enabled: sessionActive,
+    onRecordingStart: () => {
+      console.log("[VoiceAgent] Clearing audio queue (new recording)");
+      clearQueueRef.current();
+      setStreamingText(""); // Also clear streaming text
+    },
   });
 
   // Keyboard handler

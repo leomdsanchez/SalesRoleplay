@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 export interface UsePushToTalkRecorderOptions {
   onAudioReady: (blob: Blob) => void;
   enabled: boolean;
+  onRecordingStart?: () => void;
 }
 
 /**
@@ -12,6 +13,7 @@ export interface UsePushToTalkRecorderOptions {
 export function usePushToTalkRecorder({
   onAudioReady,
   enabled,
+  onRecordingStart,
 }: UsePushToTalkRecorderOptions) {
   const [isActive, setIsActive] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -95,6 +97,10 @@ export function usePushToTalkRecorder({
     if (state === "inactive") {
       console.log("[PushToTalk] Starting recording...");
       isProcessingRef.current = true;
+      
+      // Call callback to clear audio queue
+      onRecordingStart?.();
+      
       mediaRecorderRef.current.start();
       setIsActive(true);
       setTimeout(() => { isProcessingRef.current = false; }, 100);
@@ -104,7 +110,7 @@ export function usePushToTalkRecorder({
     } else {
       console.warn(`[PushToTalk] Cannot start, state: ${state}`);
     }
-  }, [isReady]);
+  }, [isReady, onRecordingStart]);
 
   // Stop recording (when user releases)
   const stopRecording = useCallback(() => {
