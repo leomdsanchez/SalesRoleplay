@@ -108,6 +108,19 @@ export function VoiceTab({ settings, onUpdate }: VoiceTabProps) {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tts-language">Language</Label>
+            <Input
+              id="tts-language"
+              placeholder="pt, en, es, fr..."
+              value={settings.ttsLanguage}
+              onChange={(e) => onUpdate({ ttsLanguage: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              ISO 639-1 language code for voice generation (inferred from text)
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

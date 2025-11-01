@@ -4,7 +4,7 @@ import { WebSocketServer } from "ws";
 import authRoutes from "./routes/auth";
 import { setupVoiceSettingsRoutes } from "./routes/voice-settings";
 import { VoiceSession } from "./voice/session";
-import { log } from "@shared/logger";
+import { log, logger } from "@shared/logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   wss.on("error", (error) => {
-    log.error(`WebSocket server error: ${error}`);
+    logger.error(`WebSocket server error: ${error}`);
   });
 
   return httpServer;

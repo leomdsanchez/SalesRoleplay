@@ -1,11 +1,11 @@
 import WebSocket from "ws";
-import { VoiceMessageType, type VoiceMessage } from "@shared/voice-types";
 import { streamLLMResponse } from "./llm-streaming";
 import { textToSpeech } from "./tts";
-import { speechToText } from "./stt";
-import { log } from "@shared/logger";
+import { transcribeAudio } from "./stt";
+import { log, logger } from "@shared/logger";
 import { settingsStorage } from "../storage/settings";
 import { type VoiceAgentSettings } from "@shared/settings-schema";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
   VoiceMessageType,
   type VoiceMessage,
@@ -33,7 +33,7 @@ export class VoiceSession {
         const message: VoiceMessage = JSON.parse(data.toString());
         await this.handleMessage(message);
       } catch (error) {
-        log.error(`Message handling error: ${error}`);
+        logger.error(`Message handling error: ${error}`);
         this.sendError("Invalid message format");
       }
     });
@@ -43,7 +43,7 @@ export class VoiceSession {
     });
 
     this.ws.on("error", (error) => {
-      log.error(`WebSocket error: ${error}`);
+      log.voice(`WebSocket error: ${error}`);
     });
   }
 
@@ -194,7 +194,7 @@ export class VoiceSession {
             
             // Validate base64
             if (!audioBase64 || audioBase64.length < 100) {
-              log.error(`Invalid audio data: base64 length ${audioBase64.length}`);
+              logger.error(`Invalid audio data: base64 length ${audioBase64.length}`);
               // Send error message to client
               this.send({
                 type: VoiceMessageType.ERROR,
@@ -208,7 +208,7 @@ export class VoiceSession {
 
             // Validate that it's proper base64
             if (!/^[A-Za-z0-9+/]*={0,2}$/.test(audioBase64)) {
-              log.error(`Invalid base64 format`);
+              logger.error(`Invalid base64 format`);
               this.send({
                 type: VoiceMessageType.ERROR,
                 data: { 
@@ -249,7 +249,7 @@ export class VoiceSession {
         }
       }
     } catch (error) {
-      log.error(`VoiceSession processing error: ${error}`);
+      logger.error(`VoiceSession processing error: ${error}`);
       
       // Send more specific error messages based on error type
       let errorMessage = "Processing failed";
