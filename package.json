@@ -11,7 +11,12 @@
     "db:push": "drizzle-kit push",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:all": "./run-all-tests.sh",
+    "test:settings-schema": "vitest run tests/settings-schema.test.ts",
+    "test:storage": "vitest run tests/settings-storage.test.ts",
+    "test:api": "vitest run tests/voice-settings-api.test.ts",
+    "test:double-check": "node double-check.js"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

@@ -6,10 +6,12 @@ import { GeneralTab } from "@/components/settings/GeneralTab";
 import { VoiceTab } from "@/components/settings/VoiceTab";
 import { PromptTab } from "@/components/settings/PromptTab";
 import { AdvancedTab } from "@/components/settings/AdvancedTab";
+import { useToast } from "@/hooks/use-toast";
 
 export function VoiceSettings() {
   const [settings, setSettings] = useState<VoiceAgentSettings>(defaultSettings);
   const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
   // Load settings on mount
   useEffect(() => {
@@ -24,9 +26,20 @@ export function VoiceSettings() {
       if (response.ok) {
         const data = await response.json();
         setSettings(data);
+      } else {
+        toast({
+          title: "Error loading settings",
+          description: "Failed to load voice settings. Using defaults.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Failed to load settings:", error);
+      toast({
+        title: "Error loading settings",
+        description: "Failed to load voice settings. Using defaults.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -45,10 +58,27 @@ export function VoiceSettings() {
       });
       
       if (response.ok) {
-        console.log("Settings saved successfully");
+        toast({
+          title: "Settings saved",
+          description: "Your voice agent settings have been updated successfully.",
+        });
+        // Refetch to ensure sync
+        await fetchSettings();
+      } else {
+        const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+        toast({
+          title: "Error saving settings",
+          description: errorData.message || "Failed to save settings. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
+      toast({
+        title: "Error saving settings",
+        description: "Failed to save settings. Please check your connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }

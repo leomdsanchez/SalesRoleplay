@@ -1,44 +1,27 @@
-// Voice Agent Settings Schema
-// Updated: Janeiro 2025
+import { z } from "zod";
 
 export const LLMModels = [
-  // GPT-5 series (latest generation - Aug 2025)
-  "gpt-5",                      // GPT-5 flagship
-  "gpt-5-thinking",             // GPT-5 with reasoning traces
-  "gpt-5-mini",                 // Smaller, faster GPT-5
-  "gpt-5-nano",                 // Most cost-effective GPT-5
-  
-  // GPT-4o series (multimodal)
-  "chatgpt-4o-latest",          // Dynamic latest 4o
-  "gpt-4o",                     // GPT-4o stable
-  "gpt-4o-mini",                // Smaller 4o
-  "gpt-4o-2024-11-20",
-  "gpt-4o-2024-08-06",
-  
-  // O1 series (reasoning models)
-  "o1",                         // O1 full release
-  "o1-pro",                     // O1 Pro (more compute)
-  "o1-preview",                 // O1 preview
-  "o1-mini",                    // Faster O1
-  "o1-2024-12-17",
-  
-  // GPT-4 Turbo
-  "gpt-4-turbo",
-  "gpt-4-turbo-2024-04-09",
-  
-  // GPT-4 legacy
-  "gpt-4",
-  "gpt-4-0613",
-  
-  // GPT-3.5
-  "gpt-3.5-turbo",
+  // GPT-5 series (latest generation - August 2025)
+  "gpt-5",                      // GPT-5 flagship - multimodal, reasoning traces, 128k context, state-of-the-art intelligence
+  "gpt-5-thinking",             // GPT-5 with enhanced reasoning and thought process visibility
+  "gpt-5-mini",                 // Smaller, faster GPT-5 - 32k context, cost-effective
+  "gpt-5-nano",                 // Most cost-effective GPT-5 - 16k context, fastest inference
+
+  // GPT-4o series (multimodal, stable)
+  "chatgpt-4o-latest",          // Dynamic latest 4o - auto-updates to newest version
+  "gpt-4o",                     // GPT-4o stable - multimodal, 128k context
+  "gpt-4o-mini",                // Smaller 4o - 128k context, cost-effective
+  "gpt-4o-2024-11-20",          // GPT-4o November snapshot
+  "gpt-4o-2024-08-06",          // GPT-4o August snapshot
 ] as const;
 
 export const STTModels = [
-  "whisper-1" // Latest Whisper model
+  "gpt-4o-transcribe", // Next-gen transcription model - higher accuracy
+  "whisper-1" // Legacy Whisper model for compatibility
 ] as const;
 
 export const TTSModels = [
+  "gpt-4o-mini-tts", // Next-gen TTS with better steerability and naturalness
   "tts-1", // Standard quality
   "tts-1-hd" // High definition
 ] as const;
@@ -64,9 +47,6 @@ export interface VoiceAgentSettings {
   maxTokens: number;
   topP: number;
   
-  // O1 reasoning settings (only for o1 models)
-  reasoningEffort?: "low" | "medium" | "high"; // o1 models only
-  
   // Voice settings
   sttModel: STTModel;
   sttLanguage: string;
@@ -86,11 +66,10 @@ export const defaultSettings: VoiceAgentSettings = {
   temperature: 0.7,
   maxTokens: 2000,
   topP: 1.0,
-  reasoningEffort: "medium",
   
-  sttModel: "whisper-1",
+  sttModel: "gpt-4o-transcribe",
   sttLanguage: "pt",
-  ttsModel: "tts-1",
+  ttsModel: "gpt-4o-mini-tts",
   ttsVoice: "alloy",
   
   systemPrompt: "Você é um assistente virtual prestativo e amigável.",
@@ -99,14 +78,9 @@ export const defaultSettings: VoiceAgentSettings = {
   autoPlayAudio: true,
 };
 
-// Helper to detect if model is o1 reasoning model
-export function isO1Model(model: LLMModel): boolean {
-  return model.startsWith("o1");
-}
-
 // Helper to detect if model is GPT-5 thinking model
 export function isGPT5ThinkingModel(model: LLMModel): boolean {
-  return model === "gpt-5-thinking" || model.startsWith("o1");
+  return model === "gpt-5-thinking";
 }
 
 // Helper to get model display name with grouping
@@ -117,13 +91,22 @@ export function getModelLabel(model: LLMModel): string {
     if (model === "gpt-5-mini") return `${model} (fast, cost-effective)`;
     return `${model} (latest generation)`;
   }
-  if (model.startsWith("o1")) {
-    if (model === "o1-pro") return `${model} (maximum reasoning)`;
-    return `${model} (reasoning)`;
-  }
   if (model === "chatgpt-4o-latest") return `${model} (always updated)`;
   if (model.startsWith("gpt-4o")) return `${model} (multimodal)`;
-  if (model.startsWith("gpt-4-turbo")) return `${model} (fast)`;
-  if (model.startsWith("gpt-4")) return `${model} (quality)`;
   return model;
 }
+
+// Zod schema for voice settings validation
+export const voiceSettingsSchema = z.object({
+  llmModel: z.enum(LLMModels),
+  temperature: z.number().min(0).max(2),
+  maxTokens: z.number().int().min(1).max(4000),
+  topP: z.number().min(0).max(1),
+  sttModel: z.enum(STTModels),
+  sttLanguage: z.string().min(1),
+  ttsModel: z.enum(TTSModels),
+  ttsVoice: z.enum(TTSVoices),
+  systemPrompt: z.string().min(1).max(2000),
+  streamSentences: z.boolean(),
+  autoPlayAudio: z.boolean(),
+});
