@@ -44,31 +44,9 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            GPT-5 is the latest. o1/gpt-5-thinking have reasoning. gpt-4o-mini is cost-effective.
+            gpt-5-thinking is best for reasoning tasks. gpt-4o-latest is always updated. gpt-4o-mini is cost-effective.
           </p>
         </div>
-
-        {isGPT5ThinkingModel(settings.llmModel) && (
-          <div className="space-y-2">
-            <Label htmlFor="reasoning-effort">Reasoning Effort</Label>
-            <Select
-              value={settings.reasoningEffort || "medium"}
-              onValueChange={(value) => onUpdate({ reasoningEffort: value as any })}
-            >
-              <SelectTrigger id="reasoning-effort">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low (faster, cheaper)</SelectItem>
-                <SelectItem value="medium">Medium (balanced)</SelectItem>
-                <SelectItem value="high">High (maximum reasoning)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Controls how much compute is used for reasoning. Higher = better for complex problems.
-            </p>
-          </div>
-        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">

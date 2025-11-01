@@ -104,7 +104,9 @@ export class VoiceSession {
       const audioBuffer = Buffer.from(message.data.audio, "base64");
       const { text: userText } = await transcribeAudio(
         audioBuffer,
-        message.data.format
+        message.data.format,
+        this.settings?.sttModel,
+        this.settings?.sttLanguage
       );
 
       // Send transcript to client
@@ -185,13 +187,46 @@ export class VoiceSession {
             
             // Step 3: Text-to-Speech (only for complete sentences)
             const ttsVoice = this.settings?.ttsVoice || "alloy";
-            const audioBuffer = await textToSpeech(chunk.text, ttsVoice);
+            const ttsModel = this.settings?.ttsModel || "tts-1";
+            console.log(`[VoiceSession] Generating TTS for sentence: "${chunk.text}" (voice: ${ttsVoice}, model: ${ttsModel})`);
+            const audioBuffer = await textToSpeech(chunk.text, ttsVoice, ttsModel);
             const audioBase64 = audioBuffer.toString("base64");
+            
+            console.log(`[VoiceSession] TTS generated: ${audioBuffer.length} bytes, base64 length: ${audioBase64.length}`);
+            
+            // Validate base64
+            if (!audioBase64 || audioBase64.length < 100) {
+              console.error(`[VoiceSession] Invalid audio data: base64 length ${audioBase64.length}`);
+              // Send error message to client
+              this.send({
+                type: VoiceMessageType.ERROR,
+                data: { 
+                  message: "Failed to generate audio for response",
+                  code: "TTS_FAILED"
+                },
+              });
+              return; // Skip sending invalid audio
+            }
+
+            // Validate that it's proper base64
+            if (!/^[A-Za-z0-9+/]*={0,2}$/.test(audioBase64)) {
+              console.error(`[VoiceSession] Invalid base64 format`);
+              this.send({
+                type: VoiceMessageType.ERROR,
+                data: { 
+                  message: "Audio format error",
+                  code: "INVALID_AUDIO_FORMAT"
+                },
+              });
+              return;
+            }
 
             this.send({
               type: VoiceMessageType.AGENT_AUDIO,
               data: { audio: audioBase64, format: "mp3" },
             });
+            
+            console.log(`[VoiceSession] Audio sent to client (${audioBase64.length} chars)`);
           }
         }
       }

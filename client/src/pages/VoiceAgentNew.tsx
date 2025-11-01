@@ -178,7 +178,26 @@ export default function VoiceAgentNew() {
 
       case VoiceMessageType.AGENT_AUDIO:
         const audioMsg = message as AgentAudioMessage;
+        console.log(`[VoiceAgent] Received audio: ${audioMsg.data.audio.length} chars, format: ${audioMsg.data.format}`);
+        
+        // Validate base64 before playing
+        if (!audioMsg.data.audio || audioMsg.data.audio.length < 100) {
+          console.error(`[VoiceAgent] Invalid audio data received: length ${audioMsg.data.audio.length}`);
+          return;
+        }
+        
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(audioMsg.data.audio)) {
+          console.error(`[VoiceAgent] Invalid base64 format received`);
+          return;
+        }
+        
         playAudioChunk(audioMsg.data.audio);
+        break;
+
+      case VoiceMessageType.ERROR:
+        const errorMsg = message as any;
+        console.error("[VoiceAgent] Server error:", errorMsg.data.message);
+        setConnectionError(errorMsg.data.message);
         break;
 
       case VoiceMessageType.SESSION_STARTED:
@@ -188,11 +207,36 @@ export default function VoiceAgentNew() {
   };
 
   const playAudioChunk = (base64Audio: string) => {
-    const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
-    audioQueueRef.current.push(audio);
+    try {
+      // Try different MIME types for better browser compatibility
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.volume = 1.0;
 
-    if (audioQueueRef.current.length === 1) {
-      playNextAudio();
+      // Try mpeg first (better compatibility), fallback to mp3
+      audio.src = `data:audio/mpeg;base64,${base64Audio}`;
+
+      audio.onerror = (e) => {
+        console.error("[VoiceAgent] Audio error:", e);
+        console.error("[VoiceAgent] Audio src:", audio.src.substring(0, 50) + "...");
+        console.error("[VoiceAgent] Audio readyState:", audio.readyState);
+        console.error("[VoiceAgent] Audio error code:", audio.error?.code);
+        console.error("[VoiceAgent] Audio error message:", audio.error?.message);
+
+        // Try alternative MIME type
+        if (audio.src.includes('audio/mpeg')) {
+          console.log("[VoiceAgent] Trying alternative MIME type...");
+          audio.src = `data:audio/mp3;base64,${base64Audio}`;
+        }
+      };
+
+      audioQueueRef.current.push(audio);
+
+      if (audioQueueRef.current.length === 1) {
+        playNextAudio();
+      }
+    } catch (error) {
+      console.error("[VoiceAgent] Error creating audio element:", error);
     }
   };
 
