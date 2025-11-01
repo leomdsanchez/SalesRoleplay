@@ -40,12 +40,19 @@ export async function* streamLLMResponse(
   let buffer = "";
   let toolCallBuffer: any = null;
   const sentenceEndings = /[.!?]\s+/;
+  let wordBuffer = "";
 
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta;
     
     // Handle tool calls
     if (delta?.tool_calls) {
+      // Flush pending words
+      if (wordBuffer.trim()) {
+        onTextChunk(wordBuffer, false);
+        wordBuffer = "";
+      }
+      
       const toolCall = delta.tool_calls[0];
       if (toolCall) {
         if (!toolCallBuffer) {
@@ -67,10 +74,28 @@ export async function* streamLLMResponse(
     if (!content) continue;
 
     buffer += content;
+    wordBuffer += content;
 
-    // Check if we have a complete sentence
+    // Stream text word-by-word for smooth UI
+    if (wordBuffer.includes(" ")) {
+      const words = wordBuffer.split(" ");
+      const completeWords = words.slice(0, -1).join(" ");
+      wordBuffer = words[words.length - 1];
+      
+      if (completeWords.trim()) {
+        onTextChunk(completeWords, false);
+      }
+    }
+
+    // Check if we have a complete sentence (for TTS audio generation)
     const match = buffer.match(sentenceEndings);
     if (match) {
+      // Flush remaining word buffer
+      if (wordBuffer.trim()) {
+        onTextChunk(wordBuffer, false);
+        wordBuffer = "";
+      }
+      
       const endIndex = match.index! + match[0].length;
       const sentence = buffer.slice(0, endIndex).trim();
       
