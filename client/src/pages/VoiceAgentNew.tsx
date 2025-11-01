@@ -30,6 +30,7 @@ export default function VoiceAgentNew() {
   const [recordingMode, setRecordingMode] = useState<"vad" | "push">("push");
   const [isRecording, setIsRecording] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
+  const [chunkCount, setChunkCount] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -60,14 +61,17 @@ export default function VoiceAgentNew() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !e.repeat && !isPushToTalkActive) {
         e.preventDefault();
+        console.log("Space pressed - starting recording");
         setIsPushToTalkActive(true);
         audioChunksRef.current = []; // Clear previous chunks
+        setChunkCount(0);
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space" && isPushToTalkActive) {
         e.preventDefault();
+        console.log("Space released - sending audio");
         setIsPushToTalkActive(false);
         // Send accumulated audio
         sendAccumulatedAudio();
@@ -230,13 +234,18 @@ export default function VoiceAgentNew() {
       });
 
       mediaRecorder.ondataavailable = (event) => {
+        console.log(`ondataavailable fired: size=${event.data.size}, mode=${recordingMode}, pushActive=${isPushToTalkActive}, vad=${isSpeaking}`);
+        
         if (event.data.size > 0) {
           // Accumulate chunks while push-to-talk is active
-          if (recordingMode === "push" && isPushToTalkActive) {
+          if (recordingMode === "push") {
             audioChunksRef.current.push(event.data);
+            setChunkCount(audioChunksRef.current.length);
+            console.log(`Accumulated chunk: ${event.data.size} bytes, total: ${audioChunksRef.current.length}`);
           }
           // For VAD mode, send immediately when speaking
           else if (recordingMode === "vad" && isSpeaking) {
+            console.log(`VAD mode: sending chunk immediately`);
             const reader = new FileReader();
             reader.onloadend = () => {
               const base64 = (reader.result as string).split(",")[1];
@@ -252,7 +261,8 @@ export default function VoiceAgentNew() {
         }
       };
 
-      mediaRecorder.start(100); // Capture chunks every 100ms
+      console.log(`Starting MediaRecorder in ${recordingMode} mode`);
+      mediaRecorder.start(200); // Capture chunks every 200ms
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
     } catch (err) {
@@ -394,7 +404,7 @@ export default function VoiceAgentNew() {
                   <span className="text-slate-600">
                     {recordingMode === "push"
                       ? isPushToTalkActive
-                        ? `Recording... (${audioChunksRef.current.length} chunks)`
+                        ? `Recording... (${chunkCount} chunks)`
                         : "Hold space to talk"
                       : isSpeaking
                       ? "Listening..."
