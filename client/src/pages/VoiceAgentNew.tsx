@@ -34,6 +34,7 @@ export default function VoiceAgentNew() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioQueueRef = useRef<HTMLAudioElement[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // VAD hook
   const { isSpeaking } = useVoiceActivity({
@@ -59,6 +60,7 @@ export default function VoiceAgentNew() {
       if (e.code === "Space" && !e.repeat && !isPushToTalkActive) {
         e.preventDefault();
         setIsPushToTalkActive(true);
+        audioChunksRef.current = []; // Clear previous chunks
       }
     };
 
@@ -66,6 +68,8 @@ export default function VoiceAgentNew() {
       if (e.code === "Space" && isPushToTalkActive) {
         e.preventDefault();
         setIsPushToTalkActive(false);
+        // Send accumulated audio
+        sendAccumulatedAudio();
       }
     };
 
@@ -170,6 +174,39 @@ export default function VoiceAgentNew() {
     });
   };
 
+  const sendAccumulatedAudio = () => {
+    if (audioChunksRef.current.length === 0) {
+      console.log("No audio chunks to send");
+      return;
+    }
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      console.log("WebSocket not connected");
+      return;
+    }
+
+    console.log(`Sending ${audioChunksRef.current.length} audio chunks`);
+    
+    // Combine all chunks into one blob
+    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    console.log(`Audio blob size: ${audioBlob.size} bytes`);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      console.log("Sending audio to server...");
+      wsRef.current?.send(
+        JSON.stringify({
+          type: VoiceMessageType.AUDIO_CHUNK,
+          data: { audio: base64, format: "webm" },
+        })
+      );
+    };
+    reader.readAsDataURL(audioBlob);
+    
+    // Clear chunks after sending
+    audioChunksRef.current = [];
+  };
+
   const startRecording = async () => {
     try {
       if (!isConnected) {
@@ -183,26 +220,29 @@ export default function VoiceAgentNew() {
       });
 
       mediaRecorder.ondataavailable = (event) => {
-        if (
-          event.data.size > 0 &&
-          wsRef.current?.readyState === WebSocket.OPEN &&
-          (recordingMode === "vad" ? isSpeaking : isPushToTalkActive)
-        ) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            wsRef.current?.send(
-              JSON.stringify({
-                type: VoiceMessageType.AUDIO_CHUNK,
-                data: { audio: base64, format: "webm" },
-              })
-            );
-          };
-          reader.readAsDataURL(event.data);
+        if (event.data.size > 0) {
+          // Accumulate chunks while push-to-talk is active
+          if (recordingMode === "push" && isPushToTalkActive) {
+            audioChunksRef.current.push(event.data);
+          }
+          // For VAD mode, send immediately when speaking
+          else if (recordingMode === "vad" && isSpeaking) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = (reader.result as string).split(",")[1];
+              wsRef.current?.send(
+                JSON.stringify({
+                  type: VoiceMessageType.AUDIO_CHUNK,
+                  data: { audio: base64, format: "webm" },
+                })
+              );
+            };
+            reader.readAsDataURL(event.data);
+          }
         }
       };
 
-      mediaRecorder.start(100); // Send chunks every 100ms
+      mediaRecorder.start(100); // Capture chunks every 100ms
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
     } catch (err) {
@@ -344,7 +384,7 @@ export default function VoiceAgentNew() {
                   <span className="text-slate-600">
                     {recordingMode === "push"
                       ? isPushToTalkActive
-                        ? "Recording..."
+                        ? `Recording... (${audioChunksRef.current.length} chunks)`
                         : "Hold space to talk"
                       : isSpeaking
                       ? "Listening..."
