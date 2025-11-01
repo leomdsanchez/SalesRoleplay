@@ -20,6 +20,7 @@ export function usePushToTalkRecorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const shouldSendRef = useRef(false);
+  const isProcessingRef = useRef(false); // Prevent duplicate calls
 
   // Initialize MediaRecorder
   const initialize = useCallback(async () => {
@@ -84,11 +85,21 @@ export function usePushToTalkRecorder({
       return;
     }
 
+    if (isProcessingRef.current) {
+      console.log("[PushToTalk] Already processing, ignoring");
+      return;
+    }
+
     const state = mediaRecorderRef.current.state;
     
     if (state === "inactive") {
       console.log("[PushToTalk] Starting recording...");
+      isProcessingRef.current = true;
       mediaRecorderRef.current.start();
+      setIsActive(true);
+      setTimeout(() => { isProcessingRef.current = false; }, 100);
+    } else if (state === "recording") {
+      console.log("[PushToTalk] Already recording");
       setIsActive(true);
     } else {
       console.warn(`[PushToTalk] Cannot start, state: ${state}`);
@@ -102,6 +113,13 @@ export function usePushToTalkRecorder({
       return;
     }
 
+    if (isProcessingRef.current) {
+      console.log("[PushToTalk] Processing, will stop when ready");
+      // Set a flag to stop after processing completes
+      setTimeout(() => stopRecording(), 50);
+      return;
+    }
+
     const state = mediaRecorderRef.current.state;
 
     if (state === "recording") {
@@ -109,16 +127,13 @@ export function usePushToTalkRecorder({
       shouldSendRef.current = true; // Mark that we should send this chunk
       mediaRecorderRef.current.stop();
       setIsActive(false);
-
-      // Restart for next recording
-      setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
-          console.log("[PushToTalk] Restarting for next recording");
-          // Don't start yet, wait for next press
-        }
-      }, 100);
+    } else if (state === "inactive") {
+      // Already inactive, just clear the active state
+      console.log("[PushToTalk] Already inactive, clearing state");
+      setIsActive(false);
+      shouldSendRef.current = false;
     } else {
-      console.warn(`[PushToTalk] Cannot stop, state: ${state}`);
+      console.warn(`[PushToTalk] Unexpected state: ${state}`);
     }
   }, []);
 
