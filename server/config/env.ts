@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(5000),
   DATABASE_URL: z.string().url().optional(),
   SESSION_SECRET: z.string().optional(),
+  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
 });
 
 export const env = EnvSchema.parse({
@@ -12,6 +13,7 @@ export const env = EnvSchema.parse({
   PORT: process.env.PORT,
   DATABASE_URL: process.env.DATABASE_URL,
   SESSION_SECRET: process.env.SESSION_SECRET,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 });
 
 export type Env = z.infer<typeof EnvSchema>;
