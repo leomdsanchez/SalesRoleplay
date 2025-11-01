@@ -8,7 +8,7 @@ import {
   defaultSettings,
   isGPT5Model,
   getModelLabel
-} from "../../shared/settings-schema";
+} from "../shared/settings-schema";
 
 describe("Settings Schema", () => {
   describe("Model Arrays", () => {

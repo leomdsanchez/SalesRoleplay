@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { log } from "@shared/logger";
 
 /**
  * Hook KISS para playback de áudio sequencial
@@ -122,7 +123,7 @@ export function useAudioPlayer() {
     (audioBase64: string) => {
       const audio = audioRef.current;
 
-      console.log(`[AudioPlayer] Enqueue (paused: ${audio?.paused}, queue: ${queueRef.current.length})`);
+      log.audio(`Enqueue (paused: ${audio?.paused}, queue: ${queueRef.current.length})`);
 
       queueRef.current.push(audioBase64);
       setQueueLength(queueRef.current.length);

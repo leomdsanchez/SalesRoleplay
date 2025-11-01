@@ -1,8 +1,9 @@
-import type { WebSocket } from "ws";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { transcribeAudio } from "./stt";
+import WebSocket from "ws";
+import { VoiceMessageType, type VoiceMessage } from "@shared/voice-types";
 import { streamLLMResponse } from "./llm-streaming";
-import { textToSpeech, type TTSVoice } from "./tts";
+import { textToSpeech } from "./tts";
+import { speechToText } from "./stt";
+import { log } from "@shared/logger";
 import { settingsStorage } from "../storage/settings";
 import { type VoiceAgentSettings } from "@shared/settings-schema";
 import {
@@ -251,7 +252,7 @@ export class VoiceSession {
         }
       }
     } catch (error) {
-      console.error("[VoiceSession] Processing error:", error);
+      log.error(`VoiceSession processing error: ${error}`);
       
       // Send more specific error messages based on error type
       let errorMessage = "Processing failed";
