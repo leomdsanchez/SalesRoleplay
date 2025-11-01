@@ -67,8 +67,8 @@ export interface VoiceAgentSettings {
 
 export const defaultSettings: VoiceAgentSettings = {
   llmModel: "gpt-5-mini",
-  temperature: 0.7,
-  maxTokens: 2000,
+  temperature: 0.6, // More conservative than 0.7
+  maxTokens: 1500,  // More reasonable default
   topP: 1.0,
   
   // GPT-5 reasoning parameters
@@ -77,7 +77,7 @@ export const defaultSettings: VoiceAgentSettings = {
   
   sttModel: "gpt-4o-transcribe",
   sttLanguage: "pt",
-  ttsModel: "gpt-4o-mini-tts",
+  ttsModel: "tts-1", // More reliable than gpt-4o-mini-tts
   ttsVoice: "alloy",
   
   systemPrompt: "Você é um assistente virtual prestativo e amigável.",
