@@ -52,7 +52,11 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     if (isComplete) {
       // Final message - add streaming text to messages and clear
       setStreamingText((current) => {
-        setMessages((prev) => [...prev, { role: "assistant", content: current }]);
+        // Include any final text that came with isComplete (safety net)
+        const finalContent = text ? (current ? current + " " + text : text) : current;
+        if (finalContent) {
+          setMessages((prev) => [...prev, { role: "assistant", content: finalContent }]);
+        }
         return "";
       });
     } else if (isSentence) {
