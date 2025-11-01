@@ -219,14 +219,14 @@ export default function VoiceAgentNew() {
 
     console.log(`Sending ${audioChunksRef.current.length} audio chunks`);
     
-    // Combine all chunks into one blob
-    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-    console.log(`Audio blob size: ${audioBlob.size} bytes`);
+    // Combine all chunks into one blob with correct MIME type
+    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm;codecs=opus" });
+    console.log(`Audio blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
     
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = (reader.result as string).split(",")[1];
-      console.log("Sending audio to server...");
+      console.log(`Sending audio to server... (base64 length: ${base64.length})`);
       wsRef.current?.send(
         JSON.stringify({
           type: VoiceMessageType.AUDIO_CHUNK,
