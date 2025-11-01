@@ -219,25 +219,18 @@ export default function VoiceAgentNew() {
 
     console.log(`Sending ${audioChunksRef.current.length} audio chunks`);
     
-    // Get the MIME type from the first chunk
-    const firstChunk = audioChunksRef.current[0];
-    const mimeType = firstChunk.type || "audio/wav";
-    
-    // Combine all chunks into one blob
-    const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-    console.log(`Audio blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
-    
-    // Determine format from MIME type
-    const format = mimeType.includes("wav") ? "wav" : "webm";
+    // Combine all chunks into one blob (webm with opus codec)
+    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm;codecs=opus" });
+    console.log(`Audio blob size: ${audioBlob.size} bytes`);
     
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = (reader.result as string).split(",")[1];
-      console.log(`Sending audio to server... format: ${format}, base64 length: ${base64.length}`);
+      console.log(`Sending webm audio to server... (base64 length: ${base64.length})`);
       wsRef.current?.send(
         JSON.stringify({
           type: VoiceMessageType.AUDIO_CHUNK,
-          data: { audio: base64, format: format },
+          data: { audio: base64, format: "webm" },
         })
       );
     };
@@ -256,12 +249,8 @@ export default function VoiceAgentNew() {
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Try WAV first (most compatible), fallback to webm
-      let mimeType = "audio/wav";
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/webm;codecs=opus";
-      }
-      
+      // Use webm with opus codec (confirmed working with Whisper API)
+      const mimeType = "audio/webm;codecs=opus";
       console.log(`Using MIME type: ${mimeType}`);
       
       const mediaRecorder = new MediaRecorder(stream, {
