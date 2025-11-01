@@ -8,6 +8,7 @@ import { voiceAgentTools } from "./tools";
 export interface StreamChunk {
   text?: string;
   isComplete: boolean;
+  isSentence?: boolean; // true = complete sentence (for TTS), false = word chunk (for UI)
   toolCall?: {
     id: string;
     name: string;
@@ -49,7 +50,11 @@ export async function* streamLLMResponse(
     if (delta?.tool_calls) {
       // Flush pending words
       if (wordBuffer.trim()) {
-        onTextChunk(wordBuffer, false);
+        yield {
+          text: wordBuffer,
+          isComplete: false,
+          isSentence: false,
+        };
         wordBuffer = "";
       }
       
@@ -83,7 +88,11 @@ export async function* streamLLMResponse(
       wordBuffer = words[words.length - 1];
       
       if (completeWords.trim()) {
-        onTextChunk(completeWords, false);
+        yield {
+          text: completeWords,
+          isComplete: false,
+          isSentence: false,
+        };
       }
     }
 
@@ -92,7 +101,11 @@ export async function* streamLLMResponse(
     if (match) {
       // Flush remaining word buffer
       if (wordBuffer.trim()) {
-        onTextChunk(wordBuffer, false);
+        yield {
+          text: wordBuffer,
+          isComplete: false,
+          isSentence: false,
+        };
         wordBuffer = "";
       }
       
@@ -103,6 +116,7 @@ export async function* streamLLMResponse(
         yield {
           text: sentence,
           isComplete: false,
+          isSentence: true, // This is a complete sentence for TTS
         };
       }
 
