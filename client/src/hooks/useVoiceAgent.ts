@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
+import { useAudioPlayer } from "./useAudioPlayer";
 
 export interface Message {
   role: "user" | "assistant";
@@ -23,7 +24,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
-  const [audioQueue, setAudioQueue] = useState<string[]>([]);
+  
+  // Audio player
+  const { isPlaying, enqueueAudio, clearQueue } = useAudioPlayer();
 
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean) => {
@@ -43,18 +46,18 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     if (isComplete) {
       // Use functional form to avoid dependency on streamingText
       setStreamingText((current) => {
-        setMessages((prev) => [...prev, { role: "assistant", content: current + text }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: current + " " + text }]);
         return ""; // Clear streaming text
       });
     } else {
-      setStreamingText((prev) => prev + text);
+      setStreamingText((prev) => prev + " " + text);
     }
   }, []);
 
   const onAgentAudio = useCallback((audioBase64: string) => {
     console.log(`[VoiceAgent] Agent audio chunk received`);
-    setAudioQueue((prev) => [...prev, audioBase64]);
-  }, []);
+    enqueueAudio(audioBase64);
+  }, [enqueueAudio]);
 
   const onSessionStarted = useCallback(() => {
     console.log("[VoiceAgent] Session started");
@@ -140,7 +143,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     messages,
     currentTranscript,
     streamingText,
-    audioQueue,
+    isPlaying,
     isConnected,
     recorderReady,
     isRecording,

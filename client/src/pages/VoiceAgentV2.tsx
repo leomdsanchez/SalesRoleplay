@@ -46,9 +46,9 @@ export default function VoiceAgentV2() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
       {/* Header */}
-      <header className="flex-shrink-0 border-b bg-white/80 backdrop-blur-sm">
+      <header className="flex-shrink-0 border-b bg-white/80 backdrop-blur-sm z-10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -80,24 +80,28 @@ export default function VoiceAgentV2() {
         </div>
       </header>
 
-      {/* Chat Area */}
-      <VoiceChat
-        messages={messages}
-        currentTranscript={currentTranscript}
-        streamingText={streamingText}
-      />
+      {/* Chat Area - scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <VoiceChat
+          messages={messages}
+          currentTranscript={currentTranscript}
+          streamingText={streamingText}
+        />
+      </div>
 
-      {/* Controls */}
-      <VoiceControls
-        isRecording={isRecording}
-        isPressed={isPressed}
-        recorderReady={recorderReady}
-        currentTranscript={currentTranscript}
-        isConnected={isConnected}
-        error={error}
-        onStartSession={startSession}
-        onStopSession={stopSession}
-      />
+      {/* Controls - fixed at bottom */}
+      <div className="flex-shrink-0">
+        <VoiceControls
+          isRecording={isRecording}
+          isPressed={isPressed}
+          recorderReady={recorderReady}
+          currentTranscript={currentTranscript}
+          isConnected={isConnected}
+          error={error}
+          onStartSession={startSession}
+          onStopSession={stopSession}
+        />
+      </div>
     </div>
   );
 }
