@@ -3,6 +3,8 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { transcribeAudio } from "./stt";
 import { streamLLMResponse } from "./llm-streaming";
 import { textToSpeech, type TTSVoice } from "./tts";
+import { settingsStorage } from "../storage/settings";
+import { type VoiceAgentSettings } from "@shared/settings-schema";
 import {
   VoiceMessageType,
   type VoiceMessage,
@@ -17,7 +19,7 @@ export class VoiceSession {
   private isProcessing = false;
   private shouldCancelStreaming = false;
   private userId?: string;
-  private voice: TTSVoice = "alloy";
+  private settings?: VoiceAgentSettings;
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -71,6 +73,15 @@ export class VoiceSession {
   private async handleStartSession(message: StartSessionMessage) {
     this.userId = message.data.userId;
     
+    // Load user settings
+    if (this.userId) {
+      this.settings = settingsStorage.get(this.userId);
+      console.log(`[VoiceSession] Loaded settings for user ${this.userId}:`, {
+        llmModel: this.settings.llmModel,
+        ttsVoice: this.settings.ttsVoice,
+      });
+    }
+    
     this.send({
       type: VoiceMessageType.SESSION_STARTED,
       data: { sessionId: Date.now().toString() },
@@ -106,9 +117,15 @@ export class VoiceSession {
       const textChunks: string[] = [];
       const toolCalls: any[] = [];
 
+      // Add system prompt if this is the first message
+      const history = this.conversationHistory.length === 0 && this.settings?.systemPrompt
+        ? [{ role: "system" as const, content: this.settings.systemPrompt }, ...this.conversationHistory]
+        : this.conversationHistory;
+
       for await (const chunk of streamLLMResponse(
         userText,
-        this.conversationHistory
+        history,
+        this.settings
       )) {
         // Check if streaming should be cancelled
         if (this.shouldCancelStreaming) {
@@ -167,7 +184,8 @@ export class VoiceSession {
             textChunks.push(chunk.text);
             
             // Step 3: Text-to-Speech (only for complete sentences)
-            const audioBuffer = await textToSpeech(chunk.text, this.voice);
+            const ttsVoice = this.settings?.ttsVoice || "alloy";
+            const audioBuffer = await textToSpeech(chunk.text, ttsVoice);
             const audioBase64 = audioBuffer.toString("base64");
 
             this.send({
