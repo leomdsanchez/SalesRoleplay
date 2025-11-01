@@ -3,7 +3,6 @@ import { z } from "zod";
 export const LLMModels = [
   // GPT-5 series (latest generation - August 2025)
   "gpt-5",                      // GPT-5 flagship - multimodal, reasoning traces, 128k context, state-of-the-art intelligence
-  "gpt-5-thinking",             // Enhanced reasoning with thought process visibility
   "gpt-5-mini",                 // Smaller, faster GPT-5 - 32k context, cost-effective
   "gpt-5-nano",                 // Most cost-effective GPT-5 - 16k context, fastest inference
   "gpt-5-chat-latest",          // GPT-5 chat variant - optimized for conversational use
@@ -91,18 +90,12 @@ export function isGPT5Model(model: LLMModel): boolean {
   return model.startsWith("gpt-5");
 }
 
-// Helper to detect if model is GPT-5 thinking model
-export function isGPT5ThinkingModel(model: LLMModel): boolean {
-  return model === "gpt-5-thinking";
-}
-
 // Helper to get model display name with grouping
 export function getModelLabel(model: LLMModel): string {
   if (model.startsWith("gpt-5")) {
     if (model === "gpt-5-chat-latest") return `${model} (conversational, fast)`;
     if (model === "gpt-5-nano") return `${model} (fastest, cheapest)`;
     if (model === "gpt-5-mini") return `${model} (fast, cost-effective)`;
-    if (model === "gpt-5-thinking") return `${model} (enhanced reasoning, visible thought process)`;
     return `${model} (latest generation, reasoning)`;
   }
   if (model.startsWith("gpt-4o")) return `${model} (multimodal)`;

@@ -8,24 +8,24 @@ console.log("=====================================\n");
 // 1. Test schema validation
 console.log("1. Testing Schema Validation...");
 try {
-  const { LLMModels, STTModels, TTSModels, voiceSettingsSchema, defaultSettings, isGPT5ThinkingModel, getModelLabel } = require('./shared/settings-schema.ts');
+  const { LLMModels, STTModels, TTSModels, voiceSettingsSchema, defaultSettings, getModelLabel } = require('./shared/settings-schema.ts');
 
-  // Check models
-  if (LLMModels.length !== 9) throw new Error(`Expected 9 LLM models, got ${LLMModels.length}`);
+  // Check models - 8 GPT-5/4o models (removed gpt-5-thinking)
+  if (LLMModels.length !== 8) throw new Error(`Expected 8 LLM models, got ${LLMModels.length}`);
   if (!LLMModels.includes('gpt-5')) throw new Error('gpt-5 not found');
+  if (!LLMModels.includes('gpt-5-mini')) throw new Error('gpt-5-mini not found');
   if (!LLMModels.includes('gpt-4o-mini')) throw new Error('gpt-4o-mini not found');
 
   // Check voice models
   if (!STTModels.includes('gpt-4o-transcribe')) throw new Error('gpt-4o-transcribe not found');
-  if (!TTSModels.includes('gpt-4o-mini-tts')) throw new Error('gpt-4o-mini-tts not found');
+  if (!TTSModels.includes('tts-1')) throw new Error('tts-1 not found');
 
   // Test validation
   const result = voiceSettingsSchema.safeParse(defaultSettings);
   if (!result.success) throw new Error('Default settings validation failed');
 
   // Test helpers
-  if (!isGPT5ThinkingModel('gpt-5-thinking')) throw new Error('isGPT5ThinkingModel failed');
-  if (getModelLabel('gpt-5') !== 'gpt-5 (latest generation)') throw new Error('getModelLabel failed');
+  if (getModelLabel('gpt-5') !== 'gpt-5 (latest generation, reasoning)') throw new Error('getModelLabel failed');
 
   console.log("✅ Schema validation: PASS");
 } catch (error) {

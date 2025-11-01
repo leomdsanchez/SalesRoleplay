@@ -17,7 +17,7 @@ export function SettingsHeader({ isSaving, onSave }: SettingsHeaderProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation("/v2")}
+            onClick={() => setLocation("/")}
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
