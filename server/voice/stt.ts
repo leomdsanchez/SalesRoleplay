@@ -13,10 +13,15 @@ export async function transcribeAudio(
   format: "webm" | "mp3" | "wav" = "webm"
 ): Promise<STTResult> {
   try {
+    console.log(`Transcribing audio: ${audioBuffer.length} bytes, format: ${format}`);
+    
     // Convert buffer to File using OpenAI's helper
-    const file = await toFile(audioBuffer, `audio.${format}`, {
-      type: format === "webm" ? "audio/webm" : `audio/${format}`,
+    // Use .webm extension explicitly
+    const file = await toFile(audioBuffer, `audio.webm`, {
+      type: "audio/webm",
     });
+
+    console.log(`File created: name=${file.name}, type=${file.type}, size=${file.size}`);
 
     const transcription = await openai.audio.transcriptions.create({
       file: file,
@@ -24,6 +29,8 @@ export async function transcribeAudio(
       language: "pt", // Portuguese - change if needed
       response_format: "text",
     });
+
+    console.log(`Transcription result: ${transcription}`);
 
     return {
       text: transcription,
