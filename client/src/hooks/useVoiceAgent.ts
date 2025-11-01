@@ -10,14 +10,16 @@ export interface Message {
 
 export interface UseVoiceAgentOptions {
   userId: string | undefined;
-  enabled: boolean;
 }
 
 /**
  * Hook de alto nível que orquestra todo o voice agent
  * Combina recorder, keyboard, websocket e gerencia estado
+ * 
+ * NÃO inicia automaticamente - usuário deve chamar startSession()
  */
-export function useVoiceAgent({ userId, enabled }: UseVoiceAgentOptions) {
+export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
+  const [sessionActive, setSessionActive] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
@@ -104,12 +106,12 @@ export function useVoiceAgent({ userId, enabled }: UseVoiceAgentOptions) {
     stopRecording,
   } = usePushToTalkRecorder({
     onAudioReady: handleAudioReady,
-    enabled,
+    enabled: sessionActive,
   });
 
   // Keyboard handler
   const { isPressed } = usePushToTalkKeyboard({
-    enabled: enabled && recorderReady,
+    enabled: sessionActive && recorderReady,
     onPressStart: startRecording,
     onPressEnd: stopRecording,
   });
@@ -117,11 +119,13 @@ export function useVoiceAgent({ userId, enabled }: UseVoiceAgentOptions) {
   // Control functions
   const startSession = useCallback(() => {
     console.log("[VoiceAgent] Starting session...");
+    setSessionActive(true);
     connect();
   }, [connect]);
 
   const stopSession = useCallback(() => {
     console.log("[VoiceAgent] Stopping session...");
+    setSessionActive(false);
     disconnect();
   }, [disconnect]);
 

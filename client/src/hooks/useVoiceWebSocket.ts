@@ -72,6 +72,13 @@ export function useVoiceWebSocket(
       return;
     }
 
+    if (!userId) {
+      console.warn("[VoiceWS] Cannot connect without userId");
+      setError("User not authenticated");
+      callbacks.onError?.("User not authenticated");
+      return;
+    }
+
     try {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.host || "localhost:5000";
@@ -136,6 +143,13 @@ export function useVoiceWebSocket(
     }
   }, []);
 
+  // Auto-disconnect on unmount
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
   const sendAudio = useCallback(async (audioBlob: Blob): Promise<void> => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn("[VoiceWS] Cannot send audio, not connected");
@@ -171,13 +185,6 @@ export function useVoiceWebSocket(
       reader.readAsDataURL(audioBlob);
     });
   }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
 
   return {
     isConnected,

@@ -31,7 +31,6 @@ export default function VoiceAgentV2() {
     stopSession,
   } = useVoiceAgent({
     userId: user?.id,
-    enabled: !!user,
   });
 
   if (authLoading) {
