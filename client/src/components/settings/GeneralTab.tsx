@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LLMModels, type VoiceAgentSettings, getModelLabel, isGPT5ThinkingModel } from "@shared/settings-schema";
+import { LLMModels, type VoiceAgentSettings, getModelLabel, isGPT5Model } from "@shared/settings-schema";
 
 interface GeneralTabProps {
   settings: VoiceAgentSettings;
@@ -44,9 +44,53 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            gpt-5-thinking is best for reasoning tasks. gpt-4o-latest is always updated. gpt-4o-mini is cost-effective.
+            gpt-5-chat-latest is fastest for conversation. gpt-5-mini is cost-effective. gpt-5-nano is cheapest. gpt-4o-mini is fast multimodal.
           </p>
         </div>
+
+        {isGPT5Model(settings.llmModel) && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="reasoning-effort">Reasoning Effort</Label>
+              <Select
+                value={settings.reasoningEffort}
+                onValueChange={(value: "low" | "medium" | "high") => onUpdate({ reasoningEffort: value })}
+              >
+                <SelectTrigger id="reasoning-effort">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low - Fast responses</SelectItem>
+                  <SelectItem value="medium">Medium - Balanced</SelectItem>
+                  <SelectItem value="high">High - Deep reasoning</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                How much reasoning effort to apply (affects speed and accuracy)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="verbosity">Verbosity</Label>
+              <Select
+                value={settings.verbosity}
+                onValueChange={(value: "low" | "medium" | "high") => onUpdate({ verbosity: value })}
+              >
+                <SelectTrigger id="verbosity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low - Concise</SelectItem>
+                  <SelectItem value="medium">Medium - Balanced</SelectItem>
+                  <SelectItem value="high">High - Detailed</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Control response length and detail level
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
