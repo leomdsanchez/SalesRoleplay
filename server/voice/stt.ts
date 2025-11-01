@@ -1,5 +1,7 @@
 import { openai } from "../services/openai";
-import { toFile } from "openai/uploads";
+import fs from "fs";
+import path from "path";
+import { randomUUID } from "crypto";
 
 export interface STTResult {
   text: string;
@@ -7,38 +9,39 @@ export interface STTResult {
 
 /**
  * Transcribe audio using OpenAI Whisper API
+ * Saves audio to temp file and uses createReadStream (works better than toFile)
  */
 export async function transcribeAudio(
   audioBuffer: Buffer,
-  format: "webm" | "mp3" | "wav" = "wav"
+  format: "webm" | "mp3" | "wav" = "webm"
 ): Promise<STTResult> {
+  let tempFilePath: string | null = null;
+  
   try {
     console.log(`Transcribing audio: ${audioBuffer.length} bytes, format: ${format}`);
     
-    // Map format to proper MIME type and extension
-    const mimeTypes = {
-      wav: { type: "audio/wav", ext: "wav" },
-      mp3: { type: "audio/mp3", ext: "mp3" },
-      webm: { type: "audio/webm", ext: "webm" },
-    };
+    // Create temp directory if doesn't exist
+    const tmpDir = path.join(process.cwd(), "data", "tmp");
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
     
-    const { type, ext } = mimeTypes[format] || mimeTypes.wav;
+    // Save buffer to temp file (this is the trick that works!)
+    const ext = format === "webm" ? "webm" : format;
+    tempFilePath = path.join(tmpDir, `${randomUUID()}.${ext}`);
+    fs.writeFileSync(tempFilePath, audioBuffer);
     
-    // Convert buffer to File using OpenAI's helper
-    const file = await toFile(audioBuffer, `audio.${ext}`, {
-      type: type,
-    });
+    console.log(`Temp file saved: ${tempFilePath}, size: ${fs.statSync(tempFilePath).size}`);
 
-    console.log(`File created: name=${file.name}, type=${file.type}, size=${file.size}`);
-
+    // Use createReadStream (this is what works in production!)
     const transcription = await openai.audio.transcriptions.create({
-      file: file,
+      file: fs.createReadStream(tempFilePath) as any,
       model: "whisper-1",
       language: "pt", // Portuguese - change if needed
       response_format: "text",
     });
 
-    console.log(`Transcription result: ${transcription}`);
+    console.log(`Transcription successful: ${transcription.substring(0, 50)}...`);
 
     return {
       text: transcription,
@@ -46,5 +49,15 @@ export async function transcribeAudio(
   } catch (error) {
     console.error("STT Error:", error);
     throw new Error(`Speech-to-text failed: ${error}`);
+  } finally {
+    // Clean up temp file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+        console.log(`Temp file deleted: ${tempFilePath}`);
+      } catch (e) {
+        console.error("Failed to delete temp file:", e);
+      }
+    }
   }
 }
