@@ -7,7 +7,6 @@ import {
   voiceSettingsSchema,
   defaultSettings,
   isGPT5Model,
-  isGPT5ThinkingModel,
   getModelLabel
 } from "../../shared/settings-schema";
 
@@ -15,9 +14,9 @@ describe("Settings Schema", () => {
   describe("Model Arrays", () => {
     it("should contain only valid GPT-5 and GPT-4o models", () => {
       expect(LLMModels).toContain("gpt-5");
-      expect(LLMModels).toContain("gpt-5-thinking");
       expect(LLMModels).toContain("gpt-5-mini");
       expect(LLMModels).toContain("gpt-5-nano");
+      expect(LLMModels).toContain("gpt-5-chat-latest");
       expect(LLMModels).toContain("gpt-4o");
       expect(LLMModels).toContain("gpt-4o-mini");
 
@@ -27,6 +26,7 @@ describe("Settings Schema", () => {
       expect(LLMModels).not.toContain("gpt-4");
       expect(LLMModels).not.toContain("gpt-4-turbo");
       expect(LLMModels).not.toContain("gpt-3.5-turbo");
+      expect(LLMModels).not.toContain("gpt-5-thinking"); // Removed as not official API model
     });
 
     it("should contain updated voice models", () => {
@@ -42,21 +42,14 @@ describe("Settings Schema", () => {
   describe("GPT-5 Model Detection", () => {
     it("should correctly identify GPT-5 models", () => {
       expect(isGPT5Model("gpt-5")).toBe(true);
-      expect(isGPT5Model("gpt-5-thinking")).toBe(true);
       expect(isGPT5Model("gpt-5-mini")).toBe(true);
       expect(isGPT5Model("gpt-5-nano")).toBe(true);
+      expect(isGPT5Model("gpt-5-chat-latest")).toBe(true);
 
       // Should not identify non-GPT-5 models
       expect(isGPT5Model("gpt-4o")).toBe(false);
       expect(isGPT5Model("gpt-4o-mini")).toBe(false);
       expect(isGPT5Model("chatgpt-4o-latest")).toBe(false);
-    });
-
-    it("should correctly identify GPT-5 thinking model", () => {
-      expect(isGPT5ThinkingModel("gpt-5-thinking")).toBe(true);
-      expect(isGPT5ThinkingModel("gpt-5")).toBe(false);
-      expect(isGPT5ThinkingModel("gpt-5-mini")).toBe(false);
-      expect(isGPT5ThinkingModel("gpt-4o")).toBe(false);
     });
   });
 
@@ -116,20 +109,20 @@ describe("Settings Schema", () => {
 
   describe("Helper Functions", () => {
     it("should generate correct model labels", () => {
-      expect(getModelLabel("gpt-5")).toBe("gpt-5 (latest generation)");
-      expect(getModelLabel("gpt-5-thinking")).toBe("gpt-5-thinking (thinking + reasoning)");
+      expect(getModelLabel("gpt-5")).toBe("gpt-5 (latest generation, reasoning)");
       expect(getModelLabel("gpt-5-mini")).toBe("gpt-5-mini (fast, cost-effective)");
       expect(getModelLabel("gpt-5-nano")).toBe("gpt-5-nano (fastest, cheapest)");
+      expect(getModelLabel("gpt-5-chat-latest")).toBe("gpt-5-chat-latest (conversational, fast)");
       expect(getModelLabel("gpt-4o")).toBe("gpt-4o (multimodal)");
-      expect(getModelLabel("chatgpt-4o-latest")).toBe("chatgpt-4o-latest (always updated)");
+      expect(getModelLabel("gpt-4o-mini")).toBe("gpt-4o-mini (multimodal)");
     });
   });
 
   describe("Default Settings", () => {
     it("should use updated default models", () => {
-      expect(defaultSettings.llmModel).toBe("gpt-4o-mini");
+      expect(defaultSettings.llmModel).toBe("gpt-5-mini");
       expect(defaultSettings.sttModel).toBe("gpt-4o-transcribe");
-      expect(defaultSettings.ttsModel).toBe("gpt-4o-mini-tts");
+      expect(defaultSettings.ttsModel).toBe("tts-1");
     });
 
     it("should validate default settings", () => {
