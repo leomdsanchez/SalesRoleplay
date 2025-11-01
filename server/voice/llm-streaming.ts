@@ -56,7 +56,7 @@ export async function* streamLLMResponse(
   // max_tokens works for all models
   apiParams.max_tokens = effectiveSettings.maxTokens;
 
-  const stream = await openai.chat.completions.create(apiParams);
+  const stream = await openai.chat.completions.create(apiParams) as any;
 
   let buffer = "";
   let toolCallBuffer: any = null;
