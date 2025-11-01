@@ -6,6 +6,7 @@ import type {
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
 import { type VoiceAgentSettings, defaultSettings, isGPT5Model } from "@shared/settings-schema";
+import { log } from "@shared/logger";
 
 export interface StreamChunk {
   text?: string;
@@ -67,10 +68,10 @@ export async function* streamLLMResponse(
     baseParams.max_completion_tokens = effectiveSettings.maxTokens;
     baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
     baseParams.verbosity = effectiveSettings.verbosity;
-    console.log(`[LLM] Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}, reasoning_effort: ${effectiveSettings.reasoningEffort}, verbosity: ${effectiveSettings.verbosity}`);
+    log.llm(`Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}, reasoning_effort: ${effectiveSettings.reasoningEffort}, verbosity: ${effectiveSettings.verbosity}`);
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
-    console.log(`[LLM] Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}, temperature: ${effectiveSettings.temperature}`);
+    log.llm(`Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}, temperature: ${effectiveSettings.temperature}`);
   }
 
   const stream = await openai.chat.completions.create(baseParams) as unknown as AsyncIterable<ChatCompletionChunk>;
@@ -162,7 +163,7 @@ export async function* streamLLMResponse(
 
   // Flush any remaining words from wordBuffer
   if (wordBuffer.trim()) {
-    console.log("[LLM] Flushing final words:", wordBuffer);
+    log.llm(`Flushing final words: ${wordBuffer}`);
     yield {
       text: wordBuffer,
       isComplete: false,
@@ -173,7 +174,7 @@ export async function* streamLLMResponse(
 
   // Flush any remaining text from buffer (incomplete sentence)
   if (buffer.trim()) {
-    console.log("[LLM] Flushing final buffer:", buffer);
+    log.llm(`Flushing final buffer: ${buffer}`);
     yield {
       text: buffer.trim(),
       isComplete: false,

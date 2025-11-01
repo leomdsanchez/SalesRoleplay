@@ -4,6 +4,7 @@ import { WebSocketServer } from "ws";
 import authRoutes from "./routes/auth";
 import { setupVoiceSettingsRoutes } from "./routes/voice-settings";
 import { VoiceSession } from "./voice/session";
+import { log } from "@shared/logger";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -19,12 +20,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   wss.on("connection", (ws, req) => {
-    console.log("New voice session connected");
+    log.ws("New voice session connected");
     new VoiceSession(ws);
   });
 
   wss.on("error", (error) => {
-    console.error("WebSocket server error:", error);
+    log.error(`WebSocket server error: ${error}`);
   });
 
   return httpServer;
