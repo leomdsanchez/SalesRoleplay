@@ -32,16 +32,31 @@ export async function* streamLLMResponse(
     { role: "user", content: userMessage },
   ];
 
-  const stream = await openai.chat.completions.create({
+  // Check if model supports reasoning effort (o1 and gpt-5-thinking)
+  const supportsReasoningEffort = effectiveSettings.llmModel.startsWith("o1") || 
+                                   effectiveSettings.llmModel === "gpt-5-thinking";
+  
+  const apiParams: any = {
     model: effectiveSettings.llmModel,
     messages,
     stream: true,
-    temperature: effectiveSettings.temperature,
-    max_tokens: effectiveSettings.maxTokens,
-    top_p: effectiveSettings.topP,
     tools: voiceAgentTools,
     tool_choice: "auto",
-  });
+  };
+
+  // Add reasoning_effort for models that support it
+  if (supportsReasoningEffort && effectiveSettings.reasoningEffort) {
+    apiParams.reasoning_effort = effectiveSettings.reasoningEffort;
+  } else {
+    // Standard models use temperature and top_p
+    apiParams.temperature = effectiveSettings.temperature;
+    apiParams.top_p = effectiveSettings.topP;
+  }
+
+  // max_tokens works for all models
+  apiParams.max_tokens = effectiveSettings.maxTokens;
+
+  const stream = await openai.chat.completions.create(apiParams);
 
   let buffer = "";
   let toolCallBuffer: any = null;
