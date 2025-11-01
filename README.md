@@ -120,6 +120,17 @@ npm run test:watch    # modo watch
 
 Acesse: `http://localhost:5000/voice`
 
+**Features da interface:**
+- ✅ Login simplificado
+- ✅ Chat minimalista com histórico
+- ✅ VAD (Voice Activity Detection) automático
+- ✅ Push-to-talk com tecla espaço
+- ✅ Transcrição em tempo real embaixo
+- ✅ Streaming de texto do agente
+- ✅ Toggle entre modos VAD/Push-to-talk
+- ✅ Indicador visual de fala ativa
+- ✅ Botão de settings (preparado para próxima fase)
+
 ### Latência Típica
 
 - STT: ~200-400ms (Whisper)
