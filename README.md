@@ -1,12 +1,13 @@
-# REST Express + React Boilerplate
+# Voice Agent Backend + React App
 
-Stack moderno, escalável e KISS: Express + React + SQLite (dev) + Drizzle ORM.
+Stack moderno, escalável e KISS: Express + React + SQLite (dev) + Drizzle ORM + OpenAI Voice Agent (chained architecture).
 
 ## Stack
 
-- **Backend**: Express + TypeScript + Drizzle ORM + SQLite (dev)
-- **Frontend**: React + Vite + TailwindCSS + shadcn/ui
+- **Backend**: Express + TypeScript + Drizzle ORM + SQLite (dev) + WebSocket
+- **Frontend**: React + Vite + TailwindCSS + shadcn/ui + Web Audio API
 - **Auth**: Passport Local + express-session + bcrypt
+- **Voice Agent**: OpenAI (Whisper STT + GPT-4o-mini + TTS-1) - Chained Architecture
 - **Validation**: Zod
 - **Tests**: Vitest + Supertest
 
@@ -62,6 +63,7 @@ npm run db:push     # aplicar migrations
 
 Configure no painel Secrets:
 
+- `OPENAI_API_KEY` - **obrigatório** para voice agent
 - `SESSION_SECRET` - chave da sessão (prod)
 - `DATABASE_URL` - para migração futura para Postgres
 
@@ -84,6 +86,46 @@ npm run test:watch    # modo watch
 - Login (sucesso, senha errada, usuário inexistente)
 - Me (autenticado, não autenticado)
 - Logout
+
+## Voice Agent
+
+### Arquitetura
+
+**Chained Pipeline** (STT → LLM streaming → TTS):
+1. **Speech-to-Text**: Whisper API (OpenAI)
+2. **LLM Streaming**: GPT-4o-mini com sentence chunking
+3. **Text-to-Speech**: tts-1 (otimizado para velocidade)
+
+### Endpoints
+
+- **WebSocket**: `ws://localhost:5000/ws/voice`
+  - Client → Server: audio chunks (webm/mp3)
+  - Server → Client: transcripts, agent text, audio chunks
+
+### Features
+
+- ✅ Real-time bidirectional communication
+- ✅ Sentence-based chunking (reduz latência percebida)
+- ✅ Tool calling (function, search, handoff)
+- ✅ Conversation history management
+- ✅ Audio buffering durante processamento
+
+### Tools Disponíveis
+
+- `search_knowledge_base` - busca na base de conhecimento
+- `transfer_to_human` - transfere para agente humano
+- `get_user_info` - informações do usuário
+
+### UI Demo
+
+Acesse: `http://localhost:5000/voice`
+
+### Latência Típica
+
+- STT: ~200-400ms (Whisper)
+- LLM: streaming (~50ms TTFT, depois contínuo)
+- TTS: ~300-500ms por chunk
+- **Total percebido**: ~800ms até primeiro áudio
 
 ## Produção no Replit
 
