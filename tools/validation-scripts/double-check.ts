@@ -1,6 +1,19 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 // Double-check script to validate all critical functionality
+
+import { 
+  LLMModels, 
+  STTModels, 
+  TTSModels, 
+  voiceSettingsSchema, 
+  defaultSettings, 
+  getModelLabel 
+} from '../../shared/settings-schema.js';
+import { users, voiceSettings } from '../../shared/schema.js';
+import { settingsStorage } from '../../server/storage/settings.js';
+import { setupVoiceSettingsRoutes } from '../../server/routes/voice-settings.js';
+import { validate } from '../../server/middlewares/validate.js';
 
 async function runChecks() {
   console.log("🔍 DOUBLE-CHECK: Sistema VoiceSettings");
@@ -9,10 +22,7 @@ async function runChecks() {
   // 1. Test schema validation
   console.log("1. Testing Schema Validation...");
   try {
-    const settingsSchema = await import('../../shared/settings-schema.js');
-    const { LLMModels, STTModels, TTSModels, voiceSettingsSchema, defaultSettings, getModelLabel } = settingsSchema;
-
-    // Check models - 8 GPT-5/4o models (removed gpt-5-thinking)
+    // Check models - 8 GPT-5/4o models
     if (LLMModels.length !== 8) throw new Error(`Expected 8 LLM models, got ${LLMModels.length}`);
     if (!LLMModels.includes('gpt-5')) throw new Error('gpt-5 not found');
     if (!LLMModels.includes('gpt-5-mini')) throw new Error('gpt-5-mini not found');
@@ -30,7 +40,7 @@ async function runChecks() {
     if (getModelLabel('gpt-5') !== 'gpt-5 (latest generation, reasoning)') throw new Error('getModelLabel failed');
 
     console.log("✅ Schema validation: PASS");
-  } catch (error) {
+  } catch (error: any) {
     console.log("❌ Schema validation: FAIL -", error.message);
     process.exit(1);
   }
@@ -38,14 +48,11 @@ async function runChecks() {
   // 2. Test Drizzle schema
   console.log("\n2. Testing Drizzle Schema...");
   try {
-    const schema = await import('../../shared/schema.js');
-    const { users, voiceSettings } = schema;
-
     if (!users) throw new Error('users table not found');
     if (!voiceSettings) throw new Error('voiceSettings table not found');
 
     console.log("✅ Drizzle schema: PASS");
-  } catch (error) {
+  } catch (error: any) {
     console.log("❌ Drizzle schema: FAIL -", error.message);
     process.exit(1);
   }
@@ -53,14 +60,11 @@ async function runChecks() {
   // 3. Test storage interface
   console.log("\n3. Testing Storage Interface...");
   try {
-    const storage = await import('../../server/storage/settings.js');
-    const { settingsStorage } = storage;
-
     if (typeof settingsStorage.get !== 'function') throw new Error('get method missing');
     if (typeof settingsStorage.save !== 'function') throw new Error('save method missing');
 
     console.log("✅ Storage interface: PASS");
-  } catch (error) {
+  } catch (error: any) {
     console.log("❌ Storage interface: FAIL -", error.message);
     process.exit(1);
   }
@@ -68,13 +72,10 @@ async function runChecks() {
   // 4. Test API routes
   console.log("\n4. Testing API Routes...");
   try {
-    const routes = await import('../../server/routes/voice-settings.js');
-    const { setupVoiceSettingsRoutes } = routes;
-
     if (typeof setupVoiceSettingsRoutes !== 'function') throw new Error('setupVoiceSettingsRoutes not found');
 
     console.log("✅ API routes: PASS");
-  } catch (error) {
+  } catch (error: any) {
     console.log("❌ API routes: FAIL -", error.message);
     process.exit(1);
   }
@@ -82,13 +83,10 @@ async function runChecks() {
   // 5. Test middleware
   console.log("\n5. Testing Middleware...");
   try {
-    const middleware = await import('../../server/middlewares/validate.js');
-    const { validate } = middleware;
-
     if (typeof validate !== 'function') throw new Error('validate middleware not found');
 
     console.log("✅ Middleware: PASS");
-  } catch (error) {
+  } catch (error: any) {
     console.log("❌ Middleware: FAIL -", error.message);
     process.exit(1);
   }
@@ -99,7 +97,6 @@ async function runChecks() {
   console.log("- ✅ Drizzle ORM: Migration and storage working");
   console.log("- ✅ API Validation: Zod middleware applied");
   console.log("- ✅ Frontend: Toast feedback and sync implemented");
-  console.log("- ✅ Tests: 25/25 passing");
   console.log("\n🚀 System ready for production with OpenAI 2025 models!");
 }
 

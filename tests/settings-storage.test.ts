@@ -10,12 +10,12 @@ describe("Settings Storage", () => {
 
   beforeEach(async () => {
     // Clean up before each test
-    await db.delete(voiceSettings);
+    db.delete(voiceSettings).run();
   });
 
   afterEach(async () => {
     // Clean up after each test
-    await db.delete(voiceSettings);
+    db.delete(voiceSettings).run();
   });
 
   describe("get", () => {
@@ -54,7 +54,7 @@ describe("Settings Storage", () => {
       settingsStorage.save(testUserId, customSettings);
 
       // Verify in database
-      const rows = await db
+      const rows = db
         .select()
         .from(voiceSettings)
         .where(eq(voiceSettings.userId, testUserId))
@@ -82,7 +82,7 @@ describe("Settings Storage", () => {
       settingsStorage.save(testUserId, updatedSettings);
 
       // Verify only one record exists with updated values
-      const rows = await db
+      const rows = db
         .select()
         .from(voiceSettings)
         .where(eq(voiceSettings.userId, testUserId))
@@ -103,7 +103,7 @@ describe("Settings Storage", () => {
       ]);
 
       // Should have only one record with the last save
-      const rows = await db
+      const rows = db
         .select()
         .from(voiceSettings)
         .where(eq(voiceSettings.userId, testUserId))
