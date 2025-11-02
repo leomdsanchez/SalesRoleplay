@@ -24,3 +24,13 @@ export const voiceSettings = sqliteTable("voice_settings", {
 });
 
 export type VoiceSettings = typeof voiceSettings.$inferSelect;
+
+export const sessions = sqliteTable("sessions", {
+  sid: text("sid").primaryKey(),
+  sess: text("sess").notNull(),
+  expire: integer("expire").notNull(),
+});
+
+export type Session = typeof sessions.$inferSelect;
+
+export const schema = { users, sessions, voiceSettings };

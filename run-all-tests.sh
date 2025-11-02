@@ -63,35 +63,35 @@ else
 fi
 
 # 3. Database Migrations
-if run_test "Database Migrations" "npm run db:push"; then
+if run_test "Database Migrations" "npm run db:migrate"; then
     ((PASSED++))
 else
     ((FAILED++))
 fi
 
 # 4. Settings Schema Tests
-if run_test "Settings Schema Tests" "npx vitest run tests/settings-schema.test.ts --reporter=basic"; then
+if run_test "Settings Schema Tests" "npx vitest run tests/settings-schema.test.ts"; then
     ((PASSED++))
 else
     ((FAILED++))
 fi
 
 # 5. Settings Storage Tests
-if run_test "Settings Storage Tests" "npx vitest run tests/settings-storage.test.ts --reporter=basic"; then
+if run_test "Settings Storage Tests" "npx vitest run tests/settings-storage.test.ts"; then
     ((PASSED++))
 else
     ((FAILED++))
 fi
 
 # 6. Voice Settings API Tests
-if run_test "Voice Settings API Tests" "npx vitest run tests/voice-settings-api.test.ts --reporter=basic"; then
+if run_test "Voice Settings API Tests" "npx vitest run tests/voice-settings-api.test.ts"; then
     ((PASSED++))
 else
     ((FAILED++))
 fi
 
 # 7. Double-Check Integration
-if run_test "Double-Check Integration" "node double-check.js"; then
+if run_test "Double-Check Integration" "npx tsx tools/validation-scripts/double-check.js"; then
     ((PASSED++))
 else
     ((FAILED++))

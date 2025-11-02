@@ -5,6 +5,12 @@ import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 
+const DEBUG_VOICE_AGENT = false;
+const debugLog = (...args: any[]) => {
+  if (!DEBUG_VOICE_AGENT) return;
+  console.debug("[VoiceAgent]", ...args);
+};
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -26,6 +32,11 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
+  const streamingTextRef = useRef(streamingText);
+
+  useEffect(() => {
+    streamingTextRef.current = streamingText;
+  }, [streamingText]);
   
   // Audio player
   const { isPlaying, enqueueAudio, clearQueue } = useAudioPlayer();
@@ -36,62 +47,58 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
     clearQueueRef.current = clearQueue;
   }, [clearQueue]);
 
-  // Real-time speech recognition
-  const { isListening } = useSpeechRecognition({
-    enabled: isRecording,
-    language: sttLanguage === "pt" ? "pt-BR" : sttLanguage, // Map to BCP 47
-    onResult: (transcript, isFinal) => {
-      if (!isFinal) {
-        setCurrentTranscript(transcript);
-      }
-    },
-    onError: (error) => {
-      console.error("[VoiceAgent] Speech recognition error:", error);
-    },
-  });
-
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean) => {
-    console.log(`[VoiceAgent] Transcript: ${text} (final: ${isFinal})`);
-    
     if (isFinal) {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       setCurrentTranscript("");
+      // Clear streaming text when user finishes speaking - new assistant response should start fresh
+      setStreamingText((prev) => {
+        debugLog("Clearing streamingText after final transcript", { previous: prev });
+        return "";
+      });
     } else {
       setCurrentTranscript(text);
     }
   }, []);
 
   const onAgentText = useCallback((text: string, isComplete: boolean, isSentence?: boolean) => {
-    console.log(`[VoiceAgent] Agent text: "${text}" (complete: ${isComplete}, sentence: ${isSentence})`);
-    
     if (isComplete) {
       // Final message - add streaming text to messages and clear
       setStreamingText((current) => {
-        // Include any final text that came with isComplete (safety net)
         const finalContent = text ? (current ? current + " " + text : text) : current;
+        debugLog("Received isComplete=true", { text, currentStreaming: current, finalContent });
         if (finalContent) {
-          setMessages((prev) => [...prev, { role: "assistant", content: finalContent }]);
+          setMessages((prev) => {
+            debugLog("Appending final assistant message", finalContent);
+            return [...prev, { role: "assistant", content: finalContent }];
+          });
+        } else {
+          debugLog("No finalContent to append when isComplete=true");
         }
         return "";
       });
     } else if (isSentence) {
       // Complete sentence - DON'T add to streaming (already there from words), just save to history
       // The sentence is already displayed via word chunks, so do nothing here
-      console.log("[VoiceAgent] Sentence complete (already displayed via words)");
+      debugLog("Sentence complete (already displayed via words)");
     } else {
       // Word chunk - add to streaming text for real-time display
-      setStreamingText((prev) => prev === "" ? text : prev + " " + text);
+      setStreamingText((prev) => {
+        const next = prev === "" ? text : prev + " " + text;
+        debugLog("Updating streamingText with chunk", { text, previous: prev, next });
+        return next;
+      });
     }
   }, []);
 
   const onAgentAudio = useCallback((audioBase64: string) => {
-    console.log(`[VoiceAgent] Agent audio chunk received`);
+    debugLog("Agent audio chunk received", { length: audioBase64.length });
     enqueueAudio(audioBase64);
   }, [enqueueAudio]);
 
   const onSessionStarted = useCallback(() => {
-    console.log("[VoiceAgent] Session started");
+    debugLog("Session started");
   }, []);
 
   const onError = useCallback((error: string) => {
@@ -118,10 +125,10 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
   // Audio ready handler
   const handleAudioReady = useCallback(
     async (blob: Blob) => {
-      console.log(`[VoiceAgent] Audio ready: ${blob.size} bytes`);
+      debugLog("Audio ready", { size: blob.size });
       
       if (!isConnected) {
-        console.warn("[VoiceAgent] Not connected, attempting to connect...");
+        debugLog("Not connected, attempting to connect...");
         connect();
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
@@ -142,10 +149,26 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
     onAudioReady: handleAudioReady,
     enabled: sessionActive,
     onRecordingStart: () => {
-      console.log("[VoiceAgent] New recording - cancelling streaming and clearing queue");
+      debugLog("New recording - cancelling streaming and clearing queue", {
+        streamingTextBeforeCancel: streamingTextRef.current,
+      });
       cancelStreaming(); // Cancel server streaming
       clearQueueRef.current(); // Clear audio queue
-      setStreamingText(""); // Clear streaming text
+      // Don't clear streamingText here - let it persist until new response starts
+    },
+  });
+
+  // Real-time speech recognition
+  const { isListening } = useSpeechRecognition({
+    enabled: isRecording,
+    language: sttLanguage === "pt" ? "pt-BR" : sttLanguage, // Map to BCP 47
+    onResult: (transcript, isFinal) => {
+      if (!isFinal) {
+        setCurrentTranscript(transcript);
+      }
+    },
+    onError: (error) => {
+      console.error("[VoiceAgent] Speech recognition error:", error);
     },
   });
 
@@ -158,18 +181,19 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
 
   // Control functions
   const startSession = useCallback(() => {
-    console.log("[VoiceAgent] Starting session...");
+    debugLog("Starting session");
     setSessionActive(true);
     connect();
   }, [connect]);
 
   const stopSession = useCallback(() => {
-    console.log("[VoiceAgent] Stopping session...");
+    debugLog("Stopping session");
     setSessionActive(false);
     disconnect();
   }, [disconnect]);
 
   const clearMessages = useCallback(() => {
+    debugLog("Clearing messages");
     setMessages([]);
     setCurrentTranscript("");
     setStreamingText("");

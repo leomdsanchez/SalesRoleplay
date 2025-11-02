@@ -7,6 +7,12 @@ import {
   type AgentAudioMessage,
 } from "@shared/voice-types";
 
+const DEBUG_VOICE_WS = false;
+const debugLog = (...args: any[]) => {
+  if (!DEBUG_VOICE_WS) return;
+  console.debug("[VoiceWS]", ...args);
+};
+
 export interface VoiceWebSocketCallbacks {
   onTranscript?: (text: string, isFinal: boolean) => void;
   onAgentText?: (text: string, isComplete: boolean, isSentence?: boolean) => void;
@@ -39,6 +45,18 @@ export function useVoiceWebSocket(
 
   const handleMessage = useCallback(
     (message: VoiceMessage) => {
+      if (DEBUG_VOICE_WS) {
+        if (message.type === VoiceMessageType.AGENT_TEXT) {
+          const { text, isComplete, isSentence } = (message as AgentTextMessage).data;
+          debugLog("Received AGENT_TEXT", { text, isComplete, isSentence });
+        } else if (message.type === VoiceMessageType.AGENT_AUDIO) {
+          const audioMsg = message as AgentAudioMessage;
+          debugLog("Received AGENT_AUDIO", { length: audioMsg.data.audio.length });
+        } else {
+          debugLog("Received", message.type, message);
+        }
+      }
+
       switch (message.type) {
         case VoiceMessageType.TRANSCRIPT:
           const transcriptMsg = message as TranscriptMessage;

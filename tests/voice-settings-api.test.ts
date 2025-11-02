@@ -16,8 +16,8 @@ describe("Voice Settings API", () => {
     app = await createTestApp();
 
     // Clean database
-    await db.delete(voiceSettings);
-    await db.delete(users);
+    db.delete(voiceSettings).run();
+    db.delete(users).run();
 
     // Create test user and login
     const registerResponse = await request(app)
@@ -46,8 +46,8 @@ describe("Voice Settings API", () => {
   });
 
   afterEach(async () => {
-    await db.delete(voiceSettings);
-    await db.delete(users);
+    db.delete(voiceSettings).run();
+    db.delete(users).run();
   });
 
   describe("GET /api/voice/settings", () => {
@@ -66,11 +66,11 @@ describe("Voice Settings API", () => {
       };
 
       // Save settings directly to DB
-      await db.insert(voiceSettings).values({
+      db.insert(voiceSettings).values({
         userId: testUserId,
         settings: JSON.stringify(customSettings),
         updatedAt: Date.now(),
-      });
+      }).run();
 
       const response = await agent.get("/api/voice/settings");
 
@@ -94,10 +94,13 @@ describe("Voice Settings API", () => {
         temperature: 0.9,
         maxTokens: 3000,
         topP: 0.8,
+        reasoningEffort: "medium",
+        verbosity: "high",
         sttModel: "whisper-1",
         sttLanguage: "en",
         ttsModel: "tts-1-hd",
         ttsVoice: "nova",
+        ttsLanguage: "en",
         systemPrompt: "Custom prompt",
         streamSentences: false,
         autoPlayAudio: false,
@@ -111,7 +114,7 @@ describe("Voice Settings API", () => {
       expect(response.body.message).toBe("Settings saved successfully");
 
       // Verify in database
-      const rows = await db
+      const rows = db
         .select()
         .from(voiceSettings)
         .where(eq(voiceSettings.userId, testUserId))
@@ -186,7 +189,7 @@ describe("Voice Settings API", () => {
         userId: testUserId,
         settings: JSON.stringify(customSettings),
         updatedAt: Date.now(),
-      });
+      }).run();
 
       const response = await agent.post("/api/voice/settings/reset");
 
@@ -194,7 +197,7 @@ describe("Voice Settings API", () => {
       expect(response.body).toEqual(defaultSettings);
 
       // Verify in database
-      const rows = await db
+      const rows = db
         .select()
         .from(voiceSettings)
         .where(eq(voiceSettings.userId, testUserId))

@@ -12,16 +12,12 @@ export interface IStorage {
 
 export class SqliteStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const rows = db.select().from(users).where(eq(users.id, id)).limit(1).all();
     return rows[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1);
+    const rows = db.select().from(users).where(eq(users.username, username)).limit(1).all();
     return rows[0];
   }
 
@@ -33,7 +29,7 @@ export class SqliteStorage implements IStorage {
       username: insertUser.username,
       password: hashedPassword 
     };
-    await db.insert(users).values(newUser);
+    db.insert(users).values(newUser).run();
     return newUser;
   }
 }

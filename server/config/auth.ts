@@ -2,28 +2,104 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { type Express } from "express";
 import session from "express-session";
-import SqliteStore from "better-sqlite3-session-store";
-import Database from "better-sqlite3";
+import { db } from "../db/sqlite";
+import { sessions, schema } from "@shared/schema";
+import { eq, lt } from "drizzle-orm";
 import { storage } from "../storage";
 import bcrypt from "bcrypt";
 import { type User } from "@shared/schema";
-import path from "path";
+
+// Custom Drizzle Session Store
+class DrizzleSessionStore extends session.Store {
+  constructor() {
+    super();
+  }
+
+  get(sid: string, callback: (err: any, session?: any) => void): void {
+    try {
+      const rows = db.select().from(sessions).where(eq(sessions.sid, sid)).all();
+      if (rows.length > 0) {
+        const sessionData = JSON.parse(rows[0].sess);
+        callback(null, sessionData);
+      } else {
+        callback(null, null);
+      }
+    } catch (error) {
+      callback(error);
+    }
+  }
+
+  set(sid: string, session: any, callback?: (err?: any) => void): void {
+    try {
+      const expire = Date.now() + (session.cookie?.maxAge || 86400000); // 24h default
+      db.insert(sessions)
+        .values({
+          sid,
+          sess: JSON.stringify(session),
+          expire,
+        })
+        .onConflictDoUpdate({
+          target: sessions.sid,
+          set: {
+            sess: JSON.stringify(session),
+            expire,
+          },
+        })
+        .run();
+      callback?.();
+    } catch (error) {
+      callback?.(error);
+    }
+  }
+
+  destroy(sid: string, callback?: (err?: any) => void): void {
+    try {
+      db.delete(sessions).where(eq(sessions.sid, sid)).run();
+      callback?.();
+    } catch (error) {
+      callback?.(error);
+    }
+  }
+
+  all(callback: (err: any, obj?: { [sid: string]: any } | null) => void): void {
+    // Not implemented - not needed for basic functionality
+    callback(null, {});
+  }
+
+  length(callback: (err: any, length?: number) => void): void {
+    // Not implemented
+    callback(null, 0);
+  }
+
+  clear(callback?: (err?: any) => void): void {
+    try {
+      db.delete(sessions).run();
+      callback?.();
+    } catch (error) {
+      callback?.(error);
+    }
+  }
+
+  touch(sid: string, session: any, callback?: (err?: any) => void): void {
+    // Update expire time
+    this.set(sid, session, callback);
+  }
+}
+
+// Cleanup expired sessions periodically
+setInterval(() => {
+  try {
+    db.delete(sessions).where(lt(sessions.expire, Date.now())).run();
+  } catch (error) {
+    console.error("[Auth] Session cleanup error:", error);
+  }
+}, 15 * 60 * 1000); // Every 15 minutes
 
 export function setupAuth(app: Express) {
-  // Create session store with SQLite
-  const SessionStore = SqliteStore(session);
-  const sessionDb = new Database(path.join(process.cwd(), "data", "sessions.db"));
-
-  // Session config
+  // Session config with custom Drizzle store
   app.use(
     session({
-      store: new SessionStore({
-        client: sessionDb,
-        expired: {
-          clear: true,
-          intervalMs: 900000, // Clean expired sessions every 15min
-        },
-      }),
+      store: new DrizzleSessionStore(),
       secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
       resave: false,
       saveUninitialized: false,

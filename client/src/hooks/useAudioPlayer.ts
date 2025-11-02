@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { log } from "@shared/logger";
 
+const DEBUG_AUDIO_PLAYER = true;
+const audioLog = (...args: any[]) => {
+  if (!DEBUG_AUDIO_PLAYER) return;
+  console.debug("[AudioPlayer]", ...args);
+};
+
 /**
  * Hook KISS para playback de áudio sequencial
  * Usa um único Audio element e troca src
@@ -31,7 +37,7 @@ export function useAudioPlayer() {
 
     // Don't play if already playing
     if (!audio || !audio.paused) {
-      console.log("[AudioPlayer] Already playing, skipping playNext");
+      audioLog("playNext skipped", { hasAudio: !!audio, paused: audio?.paused });
       return;
     }
 
@@ -44,7 +50,7 @@ export function useAudioPlayer() {
     const nextAudio = queueRef.current.shift()!;
     setQueueLength(queueRef.current.length);
 
-    console.log(`[AudioPlayer] Playing (${queueRef.current.length} remaining)`);
+    audioLog("playNext starting", { remaining: queueRef.current.length });
     setIsPlaying(true);
 
     // Set new source with error handling
@@ -52,25 +58,25 @@ export function useAudioPlayer() {
       audio.src = `data:audio/mpeg;base64,${nextAudio}`; // Changed from audio/mp3 to audio/mpeg for better browser support
       audio.load(); // Explicitly load the audio
     } catch (error) {
-      console.error("[AudioPlayer] Error setting audio source:", error);
+      audioLog("Error setting audio source", error);
       playNext(); // Skip to next
       return;
     }
 
     // Play with enhanced error handling
     audio.play().catch((err) => {
-      console.error("[AudioPlayer] Play error:", err);
+      audioLog("Play error", err);
       // Try alternative MIME types if the first fails
       if (audio.src.includes('audio/mpeg')) {
         try {
           audio.src = `data:audio/mp3;base64,${nextAudio}`;
           audio.load();
           audio.play().catch((retryErr) => {
-            console.error("[AudioPlayer] Retry play error:", retryErr);
+            audioLog("Retry play error", retryErr);
             playNext(); // Skip to next
           });
         } catch (retryError) {
-          console.error("[AudioPlayer] Retry error:", retryError);
+          audioLog("Retry error", retryError);
           playNext(); // Skip to next
         }
       } else {
@@ -85,25 +91,34 @@ export function useAudioPlayer() {
     if (!audio) return;
 
     const handleEnded = () => {
-      console.log("[AudioPlayer] Audio ended");
+      audioLog("ended event");
       playNext(); // Play next in queue
     };
 
     const handleError = (e: ErrorEvent) => {
-      console.error("[AudioPlayer] Audio error:", e);
-      console.error("[AudioPlayer] Audio src:", audio.src.substring(0, 50) + "...");
-      console.error("[AudioPlayer] Audio readyState:", audio.readyState);
-      console.error("[AudioPlayer] Audio error code:", audio.error?.code);
-      console.error("[AudioPlayer] Audio error message:", audio.error?.message);
+      audioLog("error event", {
+        error: e.error,
+        currentSrc: audio.currentSrc,
+        readyState: audio.readyState,
+        code: audio.error?.code,
+        message: audio.error?.message,
+        queueLength: queueRef.current.length,
+      });
       playNext(); // Skip and try next
     };
 
     const handleCanPlay = () => {
-      console.log("[AudioPlayer] Audio can play");
+      audioLog("canplay event", {
+        currentSrc: audio.currentSrc,
+        readyState: audio.readyState,
+      });
     };
 
     const handleLoadStart = () => {
-      console.log("[AudioPlayer] Audio load start");
+      audioLog("loadstart event", {
+        currentSrc: audio.currentSrc,
+        queueLength: queueRef.current.length,
+      });
     };
 
     audio.addEventListener("ended", handleEnded);
@@ -123,7 +138,7 @@ export function useAudioPlayer() {
     (audioBase64: string) => {
       const audio = audioRef.current;
 
-      log.audio(`Enqueue (paused: ${audio?.paused}, queue: ${queueRef.current.length})`);
+      audioLog("enqueue", { paused: audio?.paused, queueLength: queueRef.current.length });
 
       queueRef.current.push(audioBase64);
       setQueueLength(queueRef.current.length);
@@ -139,9 +154,15 @@ export function useAudioPlayer() {
   const clearQueue = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
+      audioLog("clearQueue invoked", {
+        hadAudio: true,
+        currentSrc: audio.currentSrc,
+        queueLength: queueRef.current.length,
+      });
       audio.pause();
       audio.src = "";
     }
+    audioLog("queue cleared", { queueLength: 0 });
     queueRef.current = [];
     setQueueLength(0);
     setIsPlaying(false);

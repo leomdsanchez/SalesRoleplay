@@ -1,4 +1,45 @@
+// Web Speech API type declarations (not included in standard DOM lib)
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+  readonly message?: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  start(): void;
+  stop(): void;
+}
+
+declare var SpeechRecognition: {
+  prototype: SpeechRecognition;
+  new (): SpeechRecognition;
+};
+
 import { useState, useRef, useCallback, useEffect } from "react";
+
+const DEBUG_SPEECH_REC = true;
+const srLog = (...args: any[]) => {
+  if (!DEBUG_SPEECH_REC) return;
+  console.log("[SpeechRec]", ...args);
+};
 
 interface UseSpeechRecognitionOptions {
   enabled: boolean;
@@ -20,8 +61,8 @@ export function useSpeechRecognition({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      console.warn("Speech Recognition not supported in this browser");
+    if (typeof window === "undefined" || (!window.SpeechRecognition && !window.webkitSpeechRecognition)) {
+      srLog("Speech Recognition not supported in this browser");
       return;
     }
 
@@ -33,7 +74,7 @@ export function useSpeechRecognition({
     recognition.lang = language;
 
     recognition.onstart = () => {
-      console.log("[SpeechRec] Started listening");
+      srLog("Started listening", { language: recognition.lang });
       setIsListening(true);
     };
 
@@ -62,13 +103,13 @@ export function useSpeechRecognition({
     };
 
     recognition.onerror = (event) => {
-      console.error("[SpeechRec] Error:", event.error);
+      srLog("Error event", { error: event.error, message: (event as any).message });
       setIsListening(false);
       onError?.(`Speech recognition error: ${event.error}`);
     };
 
     recognition.onend = () => {
-      console.log("[SpeechRec] Stopped listening");
+      srLog("Stopped listening");
       setIsListening(false);
     };
 
@@ -81,20 +122,24 @@ export function useSpeechRecognition({
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
+      srLog("Calling start()", { isListening });
       recognitionRef.current.start();
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
+      srLog("Calling stop()", { isListening });
       recognitionRef.current.stop();
     }
   }, [isListening]);
 
   useEffect(() => {
     if (enabled && !isListening) {
+      srLog("Enabling recognition", { enabled, isListening });
       startListening();
     } else if (!enabled && isListening) {
+      srLog("Disabling recognition", { enabled, isListening });
       stopListening();
     }
   }, [enabled, isListening, startListening, stopListening]);

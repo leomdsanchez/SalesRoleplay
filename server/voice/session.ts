@@ -168,26 +168,27 @@ export class VoiceSession {
         }
 
         // Handle text chunks
-        if (chunk.text) {
+        if (chunk.text || chunk.isComplete) {
           // Send text chunk to client (for UI streaming)
           this.send({
             type: VoiceMessageType.AGENT_TEXT,
             data: { 
-              text: chunk.text, 
+              text: chunk.text ?? "", 
               isComplete: chunk.isComplete,
-              isSentence: chunk.isSentence 
+              isSentence: chunk.isSentence ?? false,
             },
           });
 
           // Accumulate for history (only sentences)
-          if (chunk.isSentence) {
-            textChunks.push(chunk.text);
+          const sentenceText = chunk.text ?? "";
+          if (chunk.isSentence && sentenceText) {
+            textChunks.push(sentenceText);
             
             // Step 3: Text-to-Speech (only for complete sentences)
             const ttsVoice = this.settings?.ttsVoice || "alloy";
             const ttsModel = this.settings?.ttsModel || "tts-1";
-            log.voice(`Generating TTS for sentence: "${chunk.text}" (voice: ${ttsVoice}, model: ${ttsModel})`);
-            const audioBuffer = await textToSpeech(chunk.text, ttsVoice, ttsModel);
+            log.voice(`Generating TTS for sentence: "${sentenceText}" (voice: ${ttsVoice}, model: ${ttsModel})`);
+            const audioBuffer = await textToSpeech(sentenceText, ttsVoice, ttsModel);
             const audioBase64 = audioBuffer.toString("base64");
             
             log.voice(`TTS generated: ${audioBuffer.length} bytes, base64 length: ${audioBase64.length}`);
