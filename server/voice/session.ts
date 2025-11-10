@@ -24,6 +24,7 @@ export class VoiceSession {
   private userId?: string;
   private settings?: VoiceAgentSettings;
   private currentConfidence = 0;
+  private lastConfidenceReason?: string;
   private confidenceLocked = false;
 
   constructor(ws: WebSocket) {
@@ -151,7 +152,12 @@ export class VoiceSession {
       const history: ChatCompletionMessageParam[] = [];
 
       let systemContent = this.settings?.systemPrompt || "";
-      const confidenceLine = `Confiança atual da cliente: ${(this.currentConfidence * 100).toFixed(0)}%`;
+      const confidencePayload = {
+        trust_level: Number(this.currentConfidence.toFixed(2)),
+        reason: this.lastConfidenceReason,
+      };
+      const confidenceJson = JSON.stringify(confidencePayload);
+      const confidenceLine = `Nível de confiança atual (JSON): ${confidenceJson}`;
       systemContent = `${confidenceLine}\n\n${systemContent}`.trim();
       if (ragResults.length) {
         const references = ragResults
@@ -358,6 +364,7 @@ export class VoiceSession {
       });
 
       this.currentConfidence = result.confidence;
+      this.lastConfidenceReason = result.reason;
       if (this.currentConfidence <= -1) {
         this.confidenceLocked = true;
         this.sendConfidenceUpdate(result.reason);
