@@ -94,6 +94,25 @@ export default function VoiceAgentV2() {
         />
       </div>
 
+      {agentSettings?.confidenceVisible && typeof confidence === "number" && (
+        <div className="fixed bottom-28 right-6 z-30">
+          <div className="bg-white shadow-lg border rounded-lg px-4 py-3 text-sm text-slate-600 flex flex-col gap-1 w-56">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-slate-900">Confiança</span>
+              <span className="text-slate-900 font-semibold">
+                {(confidence * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.max(0, confidence * 100))}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Controls - fixed at bottom */}
       <div className="flex-shrink-0">
         <VoiceControls
