@@ -15,6 +15,18 @@ import {
 import { ragSearch } from "../rag/service";
 import { evaluateConfidence } from "./confidence-coach";
 
+const OFFENSIVE_PATTERNS = [
+  /filha da puta/i,
+  /hija de puta/i,
+  /caralho/i,
+  /fuck/i,
+  /puta madre/i,
+  /mierda/i,
+  /cagar/i,
+  /imbecil/i,
+  /idiota/i,
+];
+
 export class VoiceSession {
   private ws: WebSocket;
   private conversationHistory: ChatCompletionMessageParam[] = [];
@@ -24,7 +36,7 @@ export class VoiceSession {
   private userId?: string;
   private settings?: VoiceAgentSettings;
   private currentConfidence = 0;
-  private lastConfidenceReason?: string;
+  private confidenceReason = "sessão iniciada";
   private confidenceLocked = false;
 
   constructor(ws: WebSocket) {
@@ -79,6 +91,7 @@ export class VoiceSession {
   private async handleStartSession(message: StartSessionMessage) {
     this.userId = message.data.userId;
     this.currentConfidence = 0;
+    this.confidenceReason = "sessão iniciada";
     this.confidenceLocked = false;
     
     // Load user settings
@@ -152,13 +165,6 @@ export class VoiceSession {
       const history: ChatCompletionMessageParam[] = [];
 
       let systemContent = this.settings?.systemPrompt || "";
-      const confidencePayload = {
-        trust_level: Number(this.currentConfidence.toFixed(2)),
-        reason: this.lastConfidenceReason,
-      };
-      const confidenceJson = JSON.stringify(confidencePayload);
-      const confidenceLine = `Nível de confiança atual (JSON): ${confidenceJson}`;
-      systemContent = `${confidenceLine}\n\n${systemContent}`.trim();
       if (ragResults.length) {
         const references = ragResults
           .map((result, idx) => {
@@ -170,6 +176,13 @@ export class VoiceSession {
         const intro = this.settings?.ragPromptIntro || defaultSettings.ragPromptIntro;
         systemContent = `${systemContent}\n\n${intro}\n${references}`.trim();
       }
+
+      const confidencePayload = {
+        trust_level: Number(this.currentConfidence.toFixed(2)),
+        reason: this.confidenceReason,
+      };
+      const confidenceLine = `Confiança atual (JSON): ${JSON.stringify(confidencePayload)}. Ajuste seu comportamento com base nesse nível.`;
+      systemContent = `${systemContent}\n\n${confidenceLine}`.trim();
 
       if (systemContent) {
         history.push({ role: "system", content: systemContent });
@@ -351,6 +364,15 @@ export class VoiceSession {
       return;
     }
 
+    if (containsOffensiveLanguage(userText)) {
+      this.currentConfidence = -1;
+      this.confidenceReason = "Linguagem ofensiva detectada";
+      this.confidenceLocked = true;
+      this.sendConfidenceUpdate(this.confidenceReason);
+      this.sendError("Confiança caiu para o mínimo. Reinicie a sessão para tentar novamente.");
+      return;
+    }
+
     try {
       const coachMessages: ChatCompletionMessageParam[] = [
         ...this.conversationHistory,
@@ -364,7 +386,7 @@ export class VoiceSession {
       });
 
       this.currentConfidence = result.confidence;
-      this.lastConfidenceReason = result.reason;
+      this.confidenceReason = result.reason || this.confidenceReason;
       if (this.currentConfidence <= -1) {
         this.confidenceLocked = true;
         this.sendConfidenceUpdate(result.reason);
@@ -380,7 +402,11 @@ export class VoiceSession {
   private sendConfidenceUpdate(reason?: string) {
     this.send({
       type: VoiceMessageType.CONFIDENCE_UPDATE,
-      data: { value: this.currentConfidence, reason },
+      data: { value: this.currentConfidence, reason: reason ?? this.confidenceReason },
     });
   }
+}
+
+function containsOffensiveLanguage(text: string) {
+  return OFFENSIVE_PATTERNS.some((pattern) => pattern.test(text));
 }
