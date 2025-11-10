@@ -13,6 +13,7 @@ import {
   type StartSessionMessage,
 } from "@shared/voice-types";
 import { ragSearch } from "../rag/service";
+import { evaluateConfidence } from "./confidence-coach";
 
 export class VoiceSession {
   private ws: WebSocket;
@@ -22,6 +23,7 @@ export class VoiceSession {
   private shouldCancelStreaming = false;
   private userId?: string;
   private settings?: VoiceAgentSettings;
+  private currentConfidence = 0.3;
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -85,6 +87,8 @@ export class VoiceSession {
       type: VoiceMessageType.SESSION_STARTED,
       data: { sessionId: Date.now().toString() },
     });
+
+    this.sendConfidenceUpdate();
   }
 
   private async handleAudioChunk(message: AudioChunkMessage) {
@@ -114,6 +118,8 @@ export class VoiceSession {
         data: { text: userText, isFinal: true },
       });
 
+      await this.updateConfidence(userText);
+
       logger.info("[Prompt] userText", userText);
 
       const ragLimit = this.settings?.ragReferenceLimit ?? 3;
@@ -138,6 +144,8 @@ export class VoiceSession {
       const history: ChatCompletionMessageParam[] = [];
 
       let systemContent = this.settings?.systemPrompt || "";
+      const confidenceLine = `Confiança atual da cliente: ${(this.currentConfidence * 100).toFixed(0)}%`;
+      systemContent = `${confidenceLine}\n\n${systemContent}`.trim();
       if (ragResults.length) {
         const references = ragResults
           .map((result, idx) => {
@@ -322,6 +330,37 @@ export class VoiceSession {
     this.send({
       type: VoiceMessageType.ERROR,
       data: { message },
+    });
+  }
+
+  private async updateConfidence(userText: string) {
+    if (!this.settings?.confidenceModel) {
+      return;
+    }
+
+    try {
+      const coachMessages: ChatCompletionMessageParam[] = [
+        ...this.conversationHistory,
+        { role: "user", content: userText },
+      ];
+
+      const result = await evaluateConfidence({
+        model: this.settings.confidenceModel,
+        prompt: this.settings.confidencePrompt || "",
+        messages: coachMessages,
+      });
+
+      this.currentConfidence = result.confidence;
+      this.sendConfidenceUpdate(result.reason);
+    } catch (error) {
+      logger.error("Confidence coach error", error);
+    }
+  }
+
+  private sendConfidenceUpdate(reason?: string) {
+    this.send({
+      type: VoiceMessageType.CONFIDENCE_UPDATE,
+      data: { value: this.currentConfidence, reason },
     });
   }
 }

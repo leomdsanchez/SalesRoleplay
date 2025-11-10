@@ -73,6 +73,9 @@ describe("Settings Schema", () => {
         autoPlayAudio: true,
         ragReferenceLimit: 3,
         ragPromptIntro: "Use referências reais:",
+        confidenceModel: "gpt-4o-mini" as const,
+        confidencePrompt: "Avalie",
+        confidenceVisible: true,
       };
 
       const result = voiceSettingsSchema.safeParse(validSettings);
@@ -145,6 +148,8 @@ describe("Settings Schema", () => {
       expect(defaultSettings.ttsLanguage).toBe("pt");
       expect(defaultSettings.ragReferenceLimit).toBeGreaterThanOrEqual(0);
       expect(defaultSettings.ragPromptIntro.length).toBeGreaterThan(0);
+      expect(defaultSettings.confidencePrompt.length).toBeGreaterThan(0);
+      expect(defaultSettings.confidenceModel).toBeTruthy();
     });
 
     it("should validate default settings", () => {

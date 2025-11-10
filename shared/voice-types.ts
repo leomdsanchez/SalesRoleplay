@@ -11,6 +11,7 @@ export enum VoiceMessageType {
   AGENT_TEXT = "agent_text",
   AGENT_AUDIO = "agent_audio",
   TOOL_CALL = "tool_call",
+  CONFIDENCE_UPDATE = "confidence_update",
   RAG_CONTEXT = "rag_context",
   ERROR = "error",
   SESSION_STARTED = "session_started",
@@ -87,6 +88,14 @@ export interface RagContextMessage extends VoiceMessage {
   type: VoiceMessageType.RAG_CONTEXT;
   data: {
     references: RagReference[];
+  };
+}
+
+export interface ConfidenceUpdateMessage extends VoiceMessage {
+  type: VoiceMessageType.CONFIDENCE_UPDATE;
+  data: {
+    value: number;
+    reason?: string;
   };
 }
 

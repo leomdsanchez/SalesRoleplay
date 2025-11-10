@@ -67,6 +67,9 @@ export interface VoiceAgentSettings {
   autoPlayAudio: boolean;
   ragReferenceLimit: number;
   ragPromptIntro: string;
+  confidenceModel: LLMModel;
+  confidencePrompt: string;
+  confidenceVisible: boolean;
 }
 
 export const defaultSettings: VoiceAgentSettings = {
@@ -91,6 +94,14 @@ export const defaultSettings: VoiceAgentSettings = {
   autoPlayAudio: true,
   ragReferenceLimit: 3,
   ragPromptIntro: "Você é a cliente. Baseie-se nas respostas reais abaixo e não repita falas do vendedor:",
+  confidenceModel: "gpt-4.1-mini",
+  confidencePrompt: `Você avalia a confiança de uma cliente chamada Ana em relação a um vendedor em uma ligação comercial. Baseie-se somente na conversa e devolva um JSON com:
+{
+  "confidence": 0.0-1.0,
+  "reason": "texto curto explicando o porquê"
+}
+`,
+  confidenceVisible: true,
 };
 
 // Helper to detect if model is GPT-5 series
@@ -130,9 +141,12 @@ export const voiceSettingsSchema = z.object({
   ttsModel: z.enum(TTSModels),
   ttsVoice: z.enum(TTSVoices),
   ttsLanguage: z.string().min(1),
-  systemPrompt: z.string().min(1).max(2000),
+  systemPrompt: z.string().min(1),
   streamSentences: z.boolean(),
   autoPlayAudio: z.boolean(),
   ragReferenceLimit: z.number().int().min(0).max(10),
   ragPromptIntro: z.string().min(1).max(2000),
+  confidenceModel: z.enum(LLMModels),
+  confidencePrompt: z.string().min(1),
+  confidenceVisible: z.boolean(),
 });

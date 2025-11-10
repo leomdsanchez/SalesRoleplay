@@ -3,6 +3,7 @@ import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
+import type { VoiceAgentSettings } from "@shared/settings-schema";
 import type { RagReference } from "@shared/voice-types";
 
 const DEBUG_VOICE_AGENT = false;
@@ -32,6 +33,8 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
   const streamingTextRef = useRef(streamingText);
 
   useEffect(() => {
@@ -97,6 +100,21 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     enqueueAudio(audioBase64);
   }, [enqueueAudio]);
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await fetch("/api/voice/settings", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setSettings(data);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      }
+    };
+    loadSettings();
+  }, []);
+
   const onRagContext = useCallback((references: RagReference[]) => {
     setMessages((prev) => {
       if (!prev.length) return prev;
@@ -118,6 +136,10 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     console.error("[VoiceAgent] Error:", error);
   }, []);
 
+  const onConfidence = useCallback((value: number) => {
+    setConfidence(value);
+  }, []);
+
   const wsCallbacks = useMemo(
     () => ({
       onTranscript,
@@ -126,8 +148,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
       onSessionStarted,
       onError,
       onRagContext,
+      onConfidence,
     }),
-    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError, onRagContext]
+    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError, onRagContext, onConfidence]
   );
 
   // WebSocket
@@ -183,6 +206,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const startSession = useCallback(() => {
     debugLog("Starting session");
     setSessionActive(true);
+    setConfidence(null);
     connect();
   }, [connect]);
 
@@ -197,6 +221,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     setMessages([]);
     setCurrentTranscript("");
     setStreamingText("");
+    setConfidence(null);
   }, []);
 
   return {
@@ -209,6 +234,8 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     recorderReady,
     isRecording,
     isPressed,
+    confidence,
+    settings,
 
     // Errors
     error: wsError || recorderError,

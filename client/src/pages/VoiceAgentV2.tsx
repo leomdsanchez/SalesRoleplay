@@ -27,6 +27,8 @@ export default function VoiceAgentV2() {
     isRecording,
     isPressed,
     error,
+    confidence,
+    settings: agentSettings,
     startSession,
     stopSession,
   } = useVoiceAgent({
@@ -87,6 +89,8 @@ export default function VoiceAgentV2() {
           messages={messages}
           currentTranscript={currentTranscript}
           streamingText={streamingText}
+          confidence={confidence ?? undefined}
+          showConfidence={agentSettings?.confidenceVisible}
         />
       </div>
 

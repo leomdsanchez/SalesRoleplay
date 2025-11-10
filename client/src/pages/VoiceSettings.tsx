@@ -6,6 +6,7 @@ import { GeneralTab } from "@/components/settings/GeneralTab";
 import { VoiceTab } from "@/components/settings/VoiceTab";
 import { PromptTab } from "@/components/settings/PromptTab";
 import { AdvancedTab } from "@/components/settings/AdvancedTab";
+import { ConfidenceTab } from "@/components/settings/ConfidenceTab";
 import { useToast } from "@/hooks/use-toast";
 
 export function VoiceSettings() {
@@ -90,11 +91,12 @@ export function VoiceSettings() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="voice">Voice</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <TabsTrigger value="confidence">Confiança</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 mt-6">
@@ -111,6 +113,10 @@ export function VoiceSettings() {
 
           <TabsContent value="advanced" className="space-y-4 mt-6">
             <AdvancedTab settings={settings} onUpdate={updateSettings} />
+          </TabsContent>
+
+          <TabsContent value="confidence" className="space-y-4 mt-6">
+            <ConfidenceTab settings={settings} onUpdate={updateSettings} />
           </TabsContent>
         </Tabs>
       </div>

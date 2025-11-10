@@ -7,6 +7,7 @@ import {
   type AgentAudioMessage,
   type RagContextMessage,
   type RagReference,
+  type ConfidenceUpdateMessage,
 } from "@shared/voice-types";
 
 const DEBUG_VOICE_WS = false;
@@ -22,6 +23,7 @@ export interface VoiceWebSocketCallbacks {
   onSessionStarted?: () => void;
   onError?: (error: string) => void;
   onRagContext?: (references: RagReference[]) => void;
+  onConfidence?: (value: number) => void;
 }
 
 export interface UseVoiceWebSocketReturn {
@@ -84,6 +86,13 @@ export function useVoiceWebSocket(
         case VoiceMessageType.RAG_CONTEXT:
           const ragMsg = message as RagContextMessage;
           callbacks.onRagContext?.(ragMsg.data.references || []);
+          break;
+
+        case VoiceMessageType.CONFIDENCE_UPDATE:
+          const confMsg = message as ConfidenceUpdateMessage;
+          if (typeof confMsg.data.value === "number") {
+            callbacks.onConfidence?.(confMsg.data.value);
+          }
           break;
 
         default:
