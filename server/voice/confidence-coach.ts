@@ -33,12 +33,23 @@ export async function evaluateConfidence({
 
   try {
     const parsed = JSON.parse(content);
-    let value = Number(parsed.confidence ?? parsed.score ?? 0);
+    let value = Number(
+      parsed.trust_level ??
+        parsed.confidence ??
+        parsed.score ??
+        parsed.value ??
+        0
+    );
     if (Number.isNaN(value)) value = 0;
     value = Math.min(1, Math.max(-1, value));
     return {
       confidence: value,
-      reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+      reason:
+        typeof parsed.reason === "string"
+          ? parsed.reason
+          : typeof parsed.explanation === "string"
+            ? parsed.explanation
+            : undefined,
     };
   } catch (error) {
     throw new Error(`Falha ao parsear confiança: ${error}`);
