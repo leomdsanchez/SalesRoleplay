@@ -15,18 +15,6 @@ import {
 import { ragSearch } from "../rag/service";
 import { evaluateConfidence } from "./confidence-coach";
 
-const OFFENSIVE_PATTERNS = [
-  /filha da puta/i,
-  /hija de puta/i,
-  /caralho/i,
-  /fuck/i,
-  /puta madre/i,
-  /mierda/i,
-  /cagar/i,
-  /imbecil/i,
-  /idiota/i,
-];
-
 export class VoiceSession {
   private ws: WebSocket;
   private conversationHistory: ChatCompletionMessageParam[] = [];
@@ -364,15 +352,6 @@ export class VoiceSession {
       return;
     }
 
-    if (containsOffensiveLanguage(userText)) {
-      this.currentConfidence = -1;
-      this.confidenceReason = "Linguagem ofensiva detectada";
-      this.confidenceLocked = true;
-      this.sendConfidenceUpdate(this.confidenceReason);
-      this.sendError("Confiança caiu para o mínimo. Reinicie a sessão para tentar novamente.");
-      return;
-    }
-
     try {
       const coachMessages: ChatCompletionMessageParam[] = [
         ...this.conversationHistory,
@@ -405,8 +384,4 @@ export class VoiceSession {
       data: { value: this.currentConfidence, reason: reason ?? this.confidenceReason },
     });
   }
-}
-
-function containsOffensiveLanguage(text: string) {
-  return OFFENSIVE_PATTERNS.some((pattern) => pattern.test(text));
 }
