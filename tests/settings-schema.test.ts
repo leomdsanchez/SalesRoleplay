@@ -71,6 +71,8 @@ describe("Settings Schema", () => {
         systemPrompt: "Test prompt",
         streamSentences: true,
         autoPlayAudio: true,
+        ragReferenceLimit: 3,
+        ragPromptIntro: "Use referências reais:",
       };
 
       const result = voiceSettingsSchema.safeParse(validSettings);
@@ -141,6 +143,8 @@ describe("Settings Schema", () => {
       expect(defaultSettings.sttModel).toBe("gpt-4o-transcribe");
       expect(defaultSettings.ttsModel).toBe("tts-1");
       expect(defaultSettings.ttsLanguage).toBe("pt");
+      expect(defaultSettings.ragReferenceLimit).toBeGreaterThanOrEqual(0);
+      expect(defaultSettings.ragPromptIntro.length).toBeGreaterThan(0);
     });
 
     it("should validate default settings", () => {

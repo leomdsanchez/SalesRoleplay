@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type VoiceAgentSettings } from "@shared/settings-schema";
 
@@ -63,6 +64,39 @@ export function AdvancedTab({ settings, onUpdate }: AdvancedTabProps) {
             checked={settings.autoPlayAudio}
             onCheckedChange={(checked) => onUpdate({ autoPlayAudio: checked })}
           />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="rag-limit">RAG References</Label>
+            <span className="text-sm text-muted-foreground">
+              {settings.ragReferenceLimit}
+            </span>
+          </div>
+          <Slider
+            id="rag-limit"
+            min={0}
+            max={10}
+            step={1}
+            value={[settings.ragReferenceLimit]}
+            onValueChange={([value]) => onUpdate({ ragReferenceLimit: value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Número máximo de referências reais adicionadas ao prompt (0 desativa RAG).
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="rag-intro">Texto antes das referências RAG</Label>
+          <Textarea
+            id="rag-intro"
+            value={settings.ragPromptIntro}
+            onChange={(e) => onUpdate({ ragPromptIntro: e.target.value })}
+            rows={4}
+          />
+          <p className="text-xs text-muted-foreground">
+            Esse texto é concatenado ao system prompt original seguido das referências recuperadas.
+          </p>
         </div>
       </CardContent>
     </Card>

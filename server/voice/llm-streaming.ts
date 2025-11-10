@@ -67,8 +67,14 @@ export async function* streamLLMResponse(
   if (isGPT5) {
     baseParams.max_completion_tokens = effectiveSettings.maxTokens;
     baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
-    baseParams.verbosity = effectiveSettings.verbosity;
-    logger.info(`[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${effectiveSettings.reasoningEffort} verbosity=${effectiveSettings.verbosity}`);
+    const resolvedVerbosity = normalizeVerbosity(
+      effectiveSettings.llmModel,
+      effectiveSettings.verbosity
+    );
+    baseParams.verbosity = resolvedVerbosity;
+    logger.info(
+      `[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${effectiveSettings.reasoningEffort} verbosity=${resolvedVerbosity}`
+    );
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
     logger.info(`[LLM] model=${effectiveSettings.llmModel} max_tokens=${effectiveSettings.maxTokens} temperature=${effectiveSettings.temperature}`);
@@ -198,6 +204,18 @@ export async function* streamLLMResponse(
     text: "",
     isComplete: true,
   };
+}
+
+function normalizeVerbosity(model: string, requested: VoiceAgentSettings["verbosity"]) {
+  if (model === "gpt-5-chat-latest") {
+    if (requested !== "medium") {
+      logger.info(
+        `[LLM] Adjusting verbosity to 'medium' for model ${model} (valor solicitado: ${requested})`
+      );
+    }
+    return "medium";
+  }
+  return requested;
 }
 
 export async function getLLMResponse(

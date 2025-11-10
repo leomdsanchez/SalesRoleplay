@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LLMModels, type VoiceAgentSettings, getModelLabel, isGPT5Model } from "@shared/settings-schema";
+import { cn } from "@/lib/utils";
 
 interface GeneralTabProps {
   settings: VoiceAgentSettings;
@@ -73,10 +74,23 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
             <div className="space-y-2">
               <Label htmlFor="verbosity">Verbosity</Label>
               <Select
-                value={settings.verbosity}
-                onValueChange={(value: "low" | "medium" | "high") => onUpdate({ verbosity: value })}
+                value={
+                  settings.llmModel === "gpt-5-chat-latest"
+                    ? "medium"
+                    : settings.verbosity
+                }
+                onValueChange={(value: "low" | "medium" | "high") =>
+                  onUpdate({ verbosity: value })
+                }
+                disabled={settings.llmModel === "gpt-5-chat-latest"}
               >
-                <SelectTrigger id="verbosity">
+                <SelectTrigger
+                  id="verbosity"
+                  className={cn(
+                    settings.llmModel === "gpt-5-chat-latest" &&
+                      "bg-slate-100 text-slate-500 cursor-not-allowed"
+                  )}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -87,6 +101,8 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
               </Select>
               <p className="text-xs text-muted-foreground">
                 Control response length and detail level
+                {settings.llmModel === "gpt-5-chat-latest" &&
+                  " (fixado em Medium para gpt-5-chat-latest)."}
               </p>
             </div>
 

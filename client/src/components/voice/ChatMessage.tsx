@@ -59,7 +59,10 @@ export function ChatMessage({ role, content, streaming, ragReferences }: ChatMes
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="mt-2 text-xs underline text-primary flex items-center gap-1"
+                className={cn(
+                  "mt-2 text-xs underline flex items-center gap-1 transition-colors",
+                  isUser ? "text-white/90 hover:text-white" : "text-primary hover:text-primary/80"
+                )}
               >
                 Contexto RAG ({ragReferences!.length})
               </button>

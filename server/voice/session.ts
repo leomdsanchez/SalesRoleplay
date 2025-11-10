@@ -4,7 +4,7 @@ import { textToSpeech } from "./tts";
 import { transcribeAudio } from "./stt";
 import { log, logger } from "@shared/logger";
 import { settingsStorage } from "../storage/settings";
-import { type VoiceAgentSettings } from "@shared/settings-schema";
+import { type VoiceAgentSettings, defaultSettings } from "@shared/settings-schema";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
   VoiceMessageType,
@@ -116,7 +116,8 @@ export class VoiceSession {
 
       logger.info("[Prompt] userText", userText);
 
-      const ragResults = await ragSearch(userText, 3);
+      const ragLimit = this.settings?.ragReferenceLimit ?? 3;
+      const ragResults = ragLimit > 0 ? await ragSearch(userText, ragLimit) : [];
 
       if (ragResults.length) {
         logger.info(
@@ -136,10 +137,7 @@ export class VoiceSession {
 
       const history: ChatCompletionMessageParam[] = [];
 
-      if (this.settings?.systemPrompt) {
-        history.push({ role: "system", content: this.settings.systemPrompt });
-      }
-
+      let systemContent = this.settings?.systemPrompt || "";
       if (ragResults.length) {
         const references = ragResults
           .map((result, idx) => {
@@ -150,10 +148,12 @@ export class VoiceSession {
             return `[${idx + 1}] (${result.source}) ${prompt ? `${prompt}\n` : ""}${answer}`;
           })
           .join("\n\n");
-        history.push({
-          role: "system",
-          content: `Você é a cliente. Baseie-se nas respostas reais abaixo e não repita fal falas do vendedor:\n${references}`,
-        });
+        const intro = this.settings?.ragPromptIntro || defaultSettings.ragPromptIntro;
+        systemContent = `${systemContent}\n\n${intro}\n${references}`.trim();
+      }
+
+      if (systemContent) {
+        history.push({ role: "system", content: systemContent });
       }
 
       history.push(...this.conversationHistory);

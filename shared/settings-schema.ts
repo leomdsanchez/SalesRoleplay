@@ -65,6 +65,8 @@ export interface VoiceAgentSettings {
   // Advanced
   streamSentences: boolean;
   autoPlayAudio: boolean;
+  ragReferenceLimit: number;
+  ragPromptIntro: string;
 }
 
 export const defaultSettings: VoiceAgentSettings = {
@@ -87,6 +89,8 @@ export const defaultSettings: VoiceAgentSettings = {
   
   streamSentences: true,
   autoPlayAudio: true,
+  ragReferenceLimit: 3,
+  ragPromptIntro: "Você é a cliente. Baseie-se nas respostas reais abaixo e não repita falas do vendedor:",
 };
 
 // Helper to detect if model is GPT-5 series
@@ -129,4 +133,6 @@ export const voiceSettingsSchema = z.object({
   systemPrompt: z.string().min(1).max(2000),
   streamSentences: z.boolean(),
   autoPlayAudio: z.boolean(),
+  ragReferenceLimit: z.number().int().min(0).max(10),
+  ragPromptIntro: z.string().min(1).max(2000),
 });
