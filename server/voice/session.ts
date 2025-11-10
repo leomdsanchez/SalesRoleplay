@@ -141,11 +141,9 @@ export class VoiceSession {
       if (ragResults.length) {
         const references = ragResults
           .map((result, idx) => {
-            const prompt = result.metadata?.prompt
-              ? `Pergunta do vendedor: ${result.metadata.prompt}`
-              : "";
-            const answer = `Resposta do cliente: ${result.text}`;
-            return `[${idx + 1}] (${result.source}) ${prompt ? `${prompt}\n` : ""}${answer}`;
+            const prompt = result.metadata?.prompt || "";
+            const combined = [prompt, result.text].filter(Boolean).join("\n");
+            return `[${idx + 1}] (${result.source}) ${combined}`;
           })
           .join("\n\n");
         const intro = this.settings?.ragPromptIntro || defaultSettings.ragPromptIntro;

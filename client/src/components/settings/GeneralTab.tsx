@@ -54,10 +54,23 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
             <div className="space-y-2">
               <Label htmlFor="reasoning-effort">Reasoning Effort</Label>
               <Select
-                value={settings.reasoningEffort}
-                onValueChange={(value: "low" | "medium" | "high") => onUpdate({ reasoningEffort: value })}
+                value={
+                  settings.llmModel === "gpt-5-chat-latest"
+                    ? "low"
+                    : settings.reasoningEffort
+                }
+                onValueChange={(value: "low" | "medium" | "high") =>
+                  onUpdate({ reasoningEffort: value })
+                }
+                disabled={settings.llmModel === "gpt-5-chat-latest"}
               >
-                <SelectTrigger id="reasoning-effort">
+                <SelectTrigger
+                  id="reasoning-effort"
+                  className={cn(
+                    settings.llmModel === "gpt-5-chat-latest" &&
+                      "bg-slate-100 text-slate-500 cursor-not-allowed"
+                  )}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -68,6 +81,8 @@ export function GeneralTab({ settings, onUpdate }: GeneralTabProps) {
               </Select>
               <p className="text-xs text-muted-foreground">
                 How much reasoning effort to apply (affects speed and accuracy)
+                {settings.llmModel === "gpt-5-chat-latest" &&
+                  " (fixado em Low para gpt-5-chat-latest)."}
               </p>
             </div>
 

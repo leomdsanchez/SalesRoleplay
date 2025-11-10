@@ -65,15 +65,20 @@ export async function* streamLLMResponse(
 
   // Use correct token parameter based on model
   if (isGPT5) {
+    const isChatModel = effectiveSettings.llmModel === "gpt-5-chat-latest";
     baseParams.max_completion_tokens = effectiveSettings.maxTokens;
-    baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
+    if (!isChatModel) {
+      baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
+    } else {
+      logger.info(`[LLM] Ignorando reasoning_effort para modelo ${effectiveSettings.llmModel}`);
+    }
     const resolvedVerbosity = normalizeVerbosity(
       effectiveSettings.llmModel,
       effectiveSettings.verbosity
     );
     baseParams.verbosity = resolvedVerbosity;
     logger.info(
-      `[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${effectiveSettings.reasoningEffort} verbosity=${resolvedVerbosity}`
+      `[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${isChatModel ? "n/a" : effectiveSettings.reasoningEffort} verbosity=${resolvedVerbosity}`
     );
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
@@ -251,9 +256,15 @@ export async function getLLMResponse(
 
   // Use correct token parameter based on model
   if (isGPT5) {
+    const isChatModel = effectiveSettings.llmModel === "gpt-5-chat-latest";
     apiParams.max_completion_tokens = effectiveSettings.maxTokens;
-    apiParams.reasoning_effort = effectiveSettings.reasoningEffort;
-    apiParams.verbosity = effectiveSettings.verbosity;
+    if (!isChatModel) {
+      apiParams.reasoning_effort = effectiveSettings.reasoningEffort;
+    }
+    apiParams.verbosity = normalizeVerbosity(
+      effectiveSettings.llmModel,
+      effectiveSettings.verbosity
+    );
   } else {
     apiParams.max_tokens = effectiveSettings.maxTokens;
   }

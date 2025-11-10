@@ -8,11 +8,16 @@ interface Turn {
 
 interface InteractionPair {
   prompt: string;
-  promptSpeaker: string;
   response: string;
-  responseSpeaker: string;
+}
+
+interface InteractionChunk {
+  promptText: string;
+  responseText: string;
   order: number;
 }
+
+const PAIRS_PER_CHUNK = 3;
 
 export async function ingestTranscript(source: string, rawContent: string) {
   const turns = parseTranscript(rawContent);
@@ -20,31 +25,28 @@ export async function ingestTranscript(source: string, rawContent: string) {
     return { chunksCreated: 0 };
   }
 
-  const pairs = buildInteractionPairs(turns);
-  if (!pairs.length) {
+  const chunks = buildInteractionChunks(turns, PAIRS_PER_CHUNK);
+  if (!chunks.length) {
     return { chunksCreated: 0 };
   }
 
   const promptEmbeddings = await embedBatch(
-    pairs.map((pair) => pair.prompt),
+    chunks.map((chunk) => chunk.promptText),
     "text-embedding-3-large"
   );
 
   await insertRagChunks(
-    pairs.map((pair, index) => ({
+    chunks.map((chunk, index) => ({
       source,
-      order: pair.order,
-      speaker: pair.responseSpeaker,
-      text: pair.response,
-      metadata: {
-        prompt: pair.prompt,
-        promptSpeaker: pair.promptSpeaker,
-      },
+      order: chunk.order,
+      speaker: "cliente",
+      text: chunk.responseText,
+      metadata: { prompt: chunk.promptText },
       embedding: promptEmbeddings[index],
     }))
   );
 
-  return { chunksCreated: pairs.length };
+  return { chunksCreated: chunks.length };
 }
 
 export async function ragSearch(query: string, topK = 3) {
@@ -114,7 +116,6 @@ function parseTranscript(raw: string): Turn[] {
 
 function buildInteractionPairs(turns: Turn[]): InteractionPair[] {
   const pairs: InteractionPair[] = [];
-  let order = 0;
 
   for (let i = 0; i < turns.length - 1; i++) {
     const current = turns[i];
@@ -127,15 +128,33 @@ function buildInteractionPairs(turns: Turn[]): InteractionPair[] {
     }
 
     pairs.push({
-      prompt: `${current.speaker}: ${current.text.trim()}`,
-      promptSpeaker: current.speaker,
-      response: `${next.speaker}: ${next.text.trim()}`,
-      responseSpeaker: next.speaker,
-      order: order++,
+      prompt: current.text.trim(),
+      response: next.text.trim(),
     });
   }
 
   return pairs;
+}
+
+function buildInteractionChunks(turns: Turn[], windowSize: number): InteractionChunk[] {
+  const pairs = buildInteractionPairs(turns);
+  if (!pairs.length) return [];
+
+  const chunks: InteractionChunk[] = [];
+  let order = 0;
+
+  for (let i = 0; i < pairs.length; i += windowSize) {
+    const group = pairs.slice(i, i + windowSize);
+    const promptText = group.map((pair) => pair.prompt).join("\n");
+    const responseText = group.map((pair) => pair.response).join("\n");
+    chunks.push({
+      promptText,
+      responseText,
+      order: order++,
+    });
+  }
+
+  return chunks;
 }
 
 async function embedBatch(
