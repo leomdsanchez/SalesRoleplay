@@ -23,7 +23,7 @@ export class VoiceSession {
   private shouldCancelStreaming = false;
   private userId?: string;
   private settings?: VoiceAgentSettings;
-  private currentConfidence = 0.3;
+  private currentConfidence = 0;
 
   constructor(ws: WebSocket) {
     this.ws = ws;
