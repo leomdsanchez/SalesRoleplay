@@ -3,7 +3,6 @@ import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
-import { useSpeechRecognition } from "./useSpeechRecognition";
 
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
@@ -18,7 +17,6 @@ export interface Message {
 
 export interface UseVoiceAgentOptions {
   userId: string | undefined;
-  sttLanguage?: string;
 }
 
 /**
@@ -27,7 +25,7 @@ export interface UseVoiceAgentOptions {
  * 
  * NÃO inicia automaticamente - usuário deve chamar startSession()
  */
-export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptions) {
+export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [sessionActive, setSessionActive] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
@@ -147,7 +145,7 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
     stopRecording,
   } = usePushToTalkRecorder({
     onAudioReady: handleAudioReady,
-    enabled: sessionActive,
+    enabled: sessionActive && isConnected,
     onRecordingStart: () => {
       debugLog("New recording - cancelling streaming and clearing queue", {
         streamingTextBeforeCancel: streamingTextRef.current,
@@ -155,20 +153,6 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
       cancelStreaming(); // Cancel server streaming
       clearQueueRef.current(); // Clear audio queue
       // Don't clear streamingText here - let it persist until new response starts
-    },
-  });
-
-  // Real-time speech recognition
-  const { isListening } = useSpeechRecognition({
-    enabled: isRecording,
-    language: sttLanguage === "pt" ? "pt-BR" : sttLanguage, // Map to BCP 47
-    onResult: (transcript, isFinal) => {
-      if (!isFinal) {
-        setCurrentTranscript(transcript);
-      }
-    },
-    onError: (error) => {
-      console.error("[VoiceAgent] Speech recognition error:", error);
     },
   });
 

@@ -20,10 +20,20 @@ export function useAuth() {
       const res = await fetch("/api/v1/auth/me", {
         credentials: "include",
       });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
+
+      if (res.status === 401) {
+        // Not logged in yet – keep user as null without logging an error
+        setUser(null);
+        return;
       }
+
+      if (!res.ok) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(text);
+      }
+
+      const data = await res.json();
+      setUser(data);
     } catch (error) {
       console.error("Auth check failed:", error);
     } finally {
