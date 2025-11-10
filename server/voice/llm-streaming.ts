@@ -6,7 +6,7 @@ import type {
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
 import { type VoiceAgentSettings, defaultSettings, isGPT5Model } from "@shared/settings-schema";
-import { log } from "@shared/logger";
+import { log, logger } from "@shared/logger";
 
 export interface StreamChunk {
   text?: string;
@@ -68,12 +68,15 @@ export async function* streamLLMResponse(
     baseParams.max_completion_tokens = effectiveSettings.maxTokens;
     baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
     baseParams.verbosity = effectiveSettings.verbosity;
-    log.llm(`Using GPT-5 model ${effectiveSettings.llmModel} with max_completion_tokens: ${effectiveSettings.maxTokens}, reasoning_effort: ${effectiveSettings.reasoningEffort}, verbosity: ${effectiveSettings.verbosity}`);
+    logger.info(`[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${effectiveSettings.reasoningEffort} verbosity=${effectiveSettings.verbosity}`);
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
-    log.llm(`Using legacy model ${effectiveSettings.llmModel} with max_tokens: ${effectiveSettings.maxTokens}, temperature: ${effectiveSettings.temperature}`);
+    logger.info(`[LLM] model=${effectiveSettings.llmModel} max_tokens=${effectiveSettings.maxTokens} temperature=${effectiveSettings.temperature}`);
   }
 
+  logger.info(
+    `[LLM] streaming call model=${effectiveSettings.llmModel} messages=${messages.length} tools=${voiceAgentTools.length}`
+  );
   const stream = await openai.chat.completions.create(baseParams) as unknown as AsyncIterable<ChatCompletionChunk>;
 
   let buffer = "";
@@ -237,6 +240,9 @@ export async function getLLMResponse(
     apiParams.max_tokens = effectiveSettings.maxTokens;
   }
 
+  logger.info(
+    `[LLM] non-stream call model=${effectiveSettings.llmModel} messages=${messages.length}`
+  );
   const response = await openai.chat.completions.create(apiParams);
 
   return response.choices[0]?.message?.content || "";

@@ -17,6 +17,8 @@ describe("Settings Schema", () => {
       expect(LLMModels).toContain("gpt-5-mini");
       expect(LLMModels).toContain("gpt-5-nano");
       expect(LLMModels).toContain("gpt-5-chat-latest");
+      expect(LLMModels).toContain("gpt-4.1");
+      expect(LLMModels).toContain("gpt-4.1-mini");
       expect(LLMModels).toContain("gpt-4o");
       expect(LLMModels).toContain("gpt-4o-mini");
 
@@ -126,6 +128,8 @@ describe("Settings Schema", () => {
       expect(getModelLabel("gpt-5-mini")).toBe("gpt-5-mini (fast, cost-effective)");
       expect(getModelLabel("gpt-5-nano")).toBe("gpt-5-nano (fastest, cheapest)");
       expect(getModelLabel("gpt-5-chat-latest")).toBe("gpt-5-chat-latest (conversational, fast)");
+      expect(getModelLabel("gpt-4.1")).toBe("gpt-4.1 (flagship multimodal)");
+      expect(getModelLabel("gpt-4.1-mini")).toBe("gpt-4.1-mini (compact, low latency)");
       expect(getModelLabel("gpt-4o")).toBe("gpt-4o (multimodal)");
       expect(getModelLabel("gpt-4o-mini")).toBe("gpt-4o-mini (multimodal)");
     });

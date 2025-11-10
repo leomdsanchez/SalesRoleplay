@@ -3,6 +3,7 @@ import { usePushToTalkRecorder } from "./usePushToTalkRecorder";
 import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
+import type { RagReference } from "@shared/voice-types";
 
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
@@ -13,6 +14,7 @@ const debugLog = (...args: any[]) => {
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  ragReferences?: RagReference[];
 }
 
 export interface UseVoiceAgentOptions {
@@ -95,6 +97,19 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     enqueueAudio(audioBase64);
   }, [enqueueAudio]);
 
+  const onRagContext = useCallback((references: RagReference[]) => {
+    setMessages((prev) => {
+      if (!prev.length) return prev;
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last.role !== "user") {
+        return next;
+      }
+      next[next.length - 1] = { ...last, ragReferences: references };
+      return next;
+    });
+  }, []);
+
   const onSessionStarted = useCallback(() => {
     debugLog("Session started");
   }, []);
@@ -110,8 +125,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
       onAgentAudio,
       onSessionStarted,
       onError,
+      onRagContext,
     }),
-    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError]
+    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError, onRagContext]
   );
 
   // WebSocket

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Database } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface SettingsHeaderProps {
@@ -27,10 +27,19 @@ export function SettingsHeader({ isSaving, onSave }: SettingsHeaderProps) {
           </div>
         </div>
 
-        <Button onClick={onSave} disabled={isSaving}>
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/rag")}
+          >
+            <Database className="w-4 h-4 mr-2" />
+            RAG Console
+          </Button>
+          <Button onClick={onSave} disabled={isSaving}>
+            <Save className="w-4 h-4 mr-2" />
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
       </div>
     </header>
   );

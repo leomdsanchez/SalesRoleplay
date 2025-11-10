@@ -12,6 +12,7 @@ import {
   type AudioChunkMessage,
   type StartSessionMessage,
 } from "@shared/voice-types";
+import { ragSearch } from "../rag/service";
 
 export class VoiceSession {
   private ws: WebSocket;
@@ -113,14 +114,54 @@ export class VoiceSession {
         data: { text: userText, isFinal: true },
       });
 
+      logger.info("[Prompt] userText", userText);
+
+      const ragResults = await ragSearch(userText, 3);
+
+      if (ragResults.length) {
+        logger.info(
+          `[RAG] ${ragResults.length} matches -> ${ragResults
+            .map((ref) => `${ref.source}:${ref.score.toFixed(2)}`)
+            .join(", ")}`
+        );
+        this.send({
+          type: VoiceMessageType.RAG_CONTEXT,
+          data: { references: ragResults },
+        });
+      }
+
       // Step 2: LLM Streaming with sentence chunking and tool calls
       const textChunks: string[] = [];
       const toolCalls: any[] = [];
 
-      // Add system prompt if this is the first message
-      const history = this.conversationHistory.length === 0 && this.settings?.systemPrompt
-        ? [{ role: "system" as const, content: this.settings.systemPrompt }, ...this.conversationHistory]
-        : this.conversationHistory;
+      const history: ChatCompletionMessageParam[] = [];
+
+      if (this.settings?.systemPrompt) {
+        history.push({ role: "system", content: this.settings.systemPrompt });
+      }
+
+      if (ragResults.length) {
+        const references = ragResults
+          .map((result, idx) => {
+            const prompt = result.metadata?.prompt
+              ? `Pergunta do vendedor: ${result.metadata.prompt}`
+              : "";
+            const answer = `Resposta do cliente: ${result.text}`;
+            return `[${idx + 1}] (${result.source}) ${prompt ? `${prompt}\n` : ""}${answer}`;
+          })
+          .join("\n\n");
+        history.push({
+          role: "system",
+          content: `Você é a cliente. Baseie-se nas respostas reais abaixo e não repita fal falas do vendedor:\n${references}`,
+        });
+      }
+
+      history.push(...this.conversationHistory);
+      logger.info(`[Prompt] historyCount=${history.length}`);
+      logger.info("[Prompt] historyPayload", JSON.stringify(history, null, 2));
+      if (ragResults.length) {
+        logger.info("[Prompt] ragReferences", JSON.stringify(ragResults, null, 2));
+      }
 
       for await (const chunk of streamLLMResponse(
         userText,

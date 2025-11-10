@@ -33,4 +33,17 @@ export const sessions = sqliteTable("sessions", {
 
 export type Session = typeof sessions.$inferSelect;
 
-export const schema = { users, sessions, voiceSettings };
+export const ragChunks = sqliteTable("rag_chunks", {
+  id: text("id").primaryKey(),
+  source: text("source").notNull(),
+  order: integer("order_idx").notNull(),
+  speaker: text("speaker").notNull(),
+  text: text("text").notNull(),
+  metadata: text("metadata"),
+  embedding: text("embedding").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export type RagChunk = typeof ragChunks.$inferSelect;
+
+export const schema = { users, sessions, voiceSettings, ragChunks };

@@ -22,6 +22,23 @@ if (!fs.existsSync(dataDir)) {
 
 const dbFile = path.join(dataDir, "dev.db");
 const sqlite = new Database(dbFile);
+
+// Ensure RAG table exists for local vector storage (KISS approach)
+sqlite
+  .prepare(
+    `CREATE TABLE IF NOT EXISTS rag_chunks (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      order_idx INTEGER NOT NULL,
+      speaker TEXT NOT NULL,
+      text TEXT NOT NULL,
+      metadata TEXT,
+      embedding TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );`
+  )
+  .run();
+
 db = drizzle(sqlite, { schema });
 
 export { db };

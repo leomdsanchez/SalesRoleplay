@@ -36,7 +36,12 @@ export function VoiceChat({
       )}
 
       {messages.map((msg, i) => (
-        <ChatMessage key={i} role={msg.role} content={msg.content} />
+        <ChatMessage
+          key={i}
+          role={msg.role}
+          content={msg.content}
+          ragReferences={msg.ragReferences}
+        />
       ))}
 
       {streamingText && (

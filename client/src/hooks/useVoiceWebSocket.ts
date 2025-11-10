@@ -5,6 +5,8 @@ import {
   type TranscriptMessage,
   type AgentTextMessage,
   type AgentAudioMessage,
+  type RagContextMessage,
+  type RagReference,
 } from "@shared/voice-types";
 
 const DEBUG_VOICE_WS = false;
@@ -19,6 +21,7 @@ export interface VoiceWebSocketCallbacks {
   onAgentAudio?: (audioBase64: string) => void;
   onSessionStarted?: () => void;
   onError?: (error: string) => void;
+  onRagContext?: (references: RagReference[]) => void;
 }
 
 export interface UseVoiceWebSocketReturn {
@@ -76,6 +79,11 @@ export function useVoiceWebSocket(
         case VoiceMessageType.SESSION_STARTED:
           console.log("[VoiceWS] Session started");
           callbacks.onSessionStarted?.();
+          break;
+
+        case VoiceMessageType.RAG_CONTEXT:
+          const ragMsg = message as RagContextMessage;
+          callbacks.onRagContext?.(ragMsg.data.references || []);
           break;
 
         default:

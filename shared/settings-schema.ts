@@ -8,6 +8,8 @@ export const LLMModels = [
   "gpt-5-chat-latest",          // GPT-5 chat variant - optimized for conversational use
 
   // GPT-4o series (multimodal, stable)
+  "gpt-4.1",                    // GPT-4.1 flagship - amplo suporte a reasoning multimodal
+  "gpt-4.1-mini",               // Versão compacta do GPT-4.1
   "gpt-4o",                     // GPT-4o stable - multimodal, 128k context
   "gpt-4o-mini",                // Smaller 4o - 128k context, cost-effective
   "gpt-4o-2024-11-20",          // GPT-4o November snapshot
@@ -99,6 +101,10 @@ export function getModelLabel(model: LLMModel): string {
     if (model === "gpt-5-nano") return `${model} (fastest, cheapest)`;
     if (model === "gpt-5-mini") return `${model} (fast, cost-effective)`;
     return `${model} (latest generation, reasoning)`;
+  }
+  if (model.startsWith("gpt-4.1")) {
+    if (model === "gpt-4.1-mini") return `${model} (compact, low latency)`;
+    return `${model} (flagship multimodal)`;
   }
   if (model.startsWith("gpt-4o")) return `${model} (multimodal)`;
   return model;

@@ -19,6 +19,9 @@ Sistema de assistente de voz enterprise com tecnologia OpenAI GPT-5, totalmente 
   - Reasoning effort (low/medium/high)
   - Verbosity control (low/medium/high)
   - Max completion tokens
+- **GPT-4.1 Series**: gpt-4.1, gpt-4.1-mini
+  - Multimodal reasoning de última geração
+  - Versão mini otimizada para baixa latência
 - **GPT-4o Series**: gpt-4o, gpt-4o-mini, gpt-4o-2024-11-20, gpt-4o-2024-08-06
   - Temperature control (0-2)
   - Max tokens

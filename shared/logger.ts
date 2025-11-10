@@ -19,28 +19,40 @@ export const LOG_CONFIG = {
 export const logger = {
   debug: (message: string, ...args: any[]) => {
     if (LOG_CONFIG.enableDebug) {
-      console.log(`🐛 ${message}`, ...args);
+      const output = formatMessage(message, ...args);
+      console.log(`🐛 ${output}`);
     }
   },
 
   info: (message: string, ...args: any[]) => {
     if (LOG_CONFIG.enableInfo) {
-      console.info(`ℹ️ ${message}`, ...args);
+      const output = formatMessage(message, ...args);
+      console.info(`ℹ️ ${output}`);
     }
   },
 
   warn: (message: string, ...args: any[]) => {
     if (LOG_CONFIG.enableWarn) {
-      console.warn(`⚠️ ${message}`, ...args);
+      const output = formatMessage(message, ...args);
+      console.warn(`⚠️ ${output}`);
     }
   },
 
   error: (message: string, ...args: any[]) => {
     if (LOG_CONFIG.enableError) {
-      console.error(`❌ ${message}`, ...args);
+      const output = formatMessage(message, ...args);
+      console.error(`❌ ${output}`);
     }
   },
 };
+
+function formatMessage(message: string, ...args: any[]) {
+  if (!args.length) return message;
+  const extra = args
+    .map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg)))
+    .join(" ");
+  return `${message} ${extra}`.trim();
+}
 
 /**
  * Quick functions for common use cases

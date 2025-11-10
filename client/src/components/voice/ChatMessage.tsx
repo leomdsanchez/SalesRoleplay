@@ -1,16 +1,29 @@
+import { useState } from "react";
 import { User, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { RagReference } from "@shared/voice-types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   streaming?: boolean;
+  ragReferences?: RagReference[];
 }
 
-export function ChatMessage({ role, content, streaming }: ChatMessageProps) {
+export function ChatMessage({ role, content, streaming, ragReferences }: ChatMessageProps) {
   const isUser = role === "user";
+  const hasRag = isUser && (ragReferences?.length ?? 0) > 0;
+  const [open, setOpen] = useState(false);
 
   return (
     <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
@@ -39,6 +52,45 @@ export function ChatMessage({ role, content, streaming }: ChatMessageProps) {
         )}
         {streaming && (
           <span className="inline-block w-1 h-4 ml-1 bg-slate-400 animate-pulse" />
+        )}
+
+        {hasRag && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="mt-2 text-xs underline text-primary flex items-center gap-1"
+              >
+                Contexto RAG ({ragReferences!.length})
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Referências recuperadas</DialogTitle>
+                <DialogDescription>
+                  Trechos reais usados pelo agente para responder este vendedor.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {ragReferences!.map((ref, idx) => (
+                  <div
+                    key={`${ref.id}-${idx}`}
+                    className="rounded-md border p-3 bg-slate-50 text-slate-800"
+                  >
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {ref.source} · Similaridade: {ref.score.toFixed(3)}
+                    </div>
+                    {ref.metadata?.prompt && (
+                      <p className="text-xs text-slate-500 mb-2">
+                        Pergunta original: {ref.metadata.prompt}
+                      </p>
+                    )}
+                    <p className="text-sm whitespace-pre-wrap">{ref.text}</p>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 

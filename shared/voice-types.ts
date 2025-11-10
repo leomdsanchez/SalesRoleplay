@@ -11,6 +11,7 @@ export enum VoiceMessageType {
   AGENT_TEXT = "agent_text",
   AGENT_AUDIO = "agent_audio",
   TOOL_CALL = "tool_call",
+  RAG_CONTEXT = "rag_context",
   ERROR = "error",
   SESSION_STARTED = "session_started",
 }
@@ -70,6 +71,22 @@ export interface ToolCallMessage extends VoiceMessage {
     name: string;
     arguments: Record<string, any>;
     result?: any;
+  };
+}
+
+export interface RagReference {
+  id: string;
+  source: string;
+  text: string;
+  score: number;
+  speaker?: string;
+  metadata?: Record<string, any> | null;
+}
+
+export interface RagContextMessage extends VoiceMessage {
+  type: VoiceMessageType.RAG_CONTEXT;
+  data: {
+    references: RagReference[];
   };
 }
 

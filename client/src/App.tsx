@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import VoiceAgentV2 from "@/pages/VoiceAgentV2";
 import { VoiceSettings } from "@/pages/VoiceSettings";
+import RagConsole from "@/pages/RagConsole";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -12,6 +13,7 @@ function Router() {
     <Switch>
       <Route path="/" component={VoiceAgentV2} />
       <Route path="/settings" component={VoiceSettings} />
+      <Route path="/rag" component={RagConsole} />
       <Route component={NotFound} />
     </Switch>
   );
