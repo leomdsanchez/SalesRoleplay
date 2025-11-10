@@ -35,7 +35,7 @@ export async function evaluateConfidence({
     const parsed = JSON.parse(content);
     let value = Number(parsed.confidence ?? parsed.score ?? 0);
     if (Number.isNaN(value)) value = 0;
-    value = Math.min(1, Math.max(0, value));
+    value = Math.min(1, Math.max(-1, value));
     return {
       confidence: value,
       reason: typeof parsed.reason === "string" ? parsed.reason : undefined,

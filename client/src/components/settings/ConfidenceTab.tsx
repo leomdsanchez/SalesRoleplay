@@ -54,7 +54,7 @@ export function ConfidenceTab({ settings, onUpdate }: ConfidenceTabProps) {
             onChange={(e) => onUpdate({ confidencePrompt: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">
-            Esse prompt guia o agente que calcula o nível de confiança (0–1) com base na conversa.
+            Esse prompt guia o agente que calcula o nível de confiança (-1 até 1) com base na conversa.
           </p>
         </div>
 

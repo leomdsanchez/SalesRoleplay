@@ -24,6 +24,7 @@ export class VoiceSession {
   private userId?: string;
   private settings?: VoiceAgentSettings;
   private currentConfidence = 0;
+  private confidenceLocked = false;
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -76,6 +77,8 @@ export class VoiceSession {
 
   private async handleStartSession(message: StartSessionMessage) {
     this.userId = message.data.userId;
+    this.currentConfidence = 0;
+    this.confidenceLocked = false;
     
     // Load user settings
     if (this.userId) {
@@ -92,6 +95,10 @@ export class VoiceSession {
   }
 
   private async handleAudioChunk(message: AudioChunkMessage) {
+    if (this.confidenceLocked) {
+      this.sendError("Confiança mínima atingida. Recarregue a página para iniciar outra sessão.");
+      return;
+    }
     if (this.isProcessing) {
       // Buffer audio if already processing
       const audioBuffer = Buffer.from(message.data.audio, "base64");
@@ -351,7 +358,13 @@ export class VoiceSession {
       });
 
       this.currentConfidence = result.confidence;
-      this.sendConfidenceUpdate(result.reason);
+      if (this.currentConfidence <= -1) {
+        this.confidenceLocked = true;
+        this.sendConfidenceUpdate(result.reason);
+        this.sendError("Confiança caiu para o mínimo. Reinicie a sessão para tentar novamente.");
+      } else {
+        this.sendConfidenceUpdate(result.reason);
+      }
     } catch (error) {
       logger.error("Confidence coach error", error);
     }
