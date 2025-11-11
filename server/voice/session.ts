@@ -143,7 +143,7 @@ export class VoiceSession {
 
       await this.updateConfidence(userText);
 
-      logger.info("[Prompt] userText", userText);
+      log.llm(`userText: ${userText}`);
 
       const ragLimit = this.settings?.ragReferenceLimit ?? 3;
       const ragResults = ragLimit > 0 ? await ragSearch(userText, ragLimit) : [];
@@ -191,10 +191,10 @@ export class VoiceSession {
       }
 
       history.push(...this.conversationHistory);
-      logger.info(`[Prompt] historyCount=${history.length}`);
-      logger.info("[Prompt] historyPayload", JSON.stringify(history, null, 2));
+      log.llm(`historyCount=${history.length}`);
+      log.llm(`historyPayload=${JSON.stringify(history, null, 2)}`);
       if (ragResults.length) {
-        logger.info("[Prompt] ragReferences", JSON.stringify(ragResults, null, 2));
+        log.llm(`ragReferences=${JSON.stringify(ragResults, null, 2)}`);
       }
 
       for await (const chunk of streamLLMResponse(

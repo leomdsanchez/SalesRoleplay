@@ -19,7 +19,7 @@ export async function evaluateConfidence({
   prompt,
   messages,
 }: ConfidenceOptions): Promise<ConfidenceResult> {
-  logger.info("[ConfidenceCoach] Avaliando confiança", {
+  logger.debug("[ConfidenceCoach] Avaliando confiança", {
     model,
     messages: messages.length,
   });
@@ -37,7 +37,7 @@ export async function evaluateConfidence({
   if (!content) {
     throw new Error("Confidence coach retornou vazio");
   }
-  logger.info("[ConfidenceCoach] Resposta do coach", content);
+  logger.debug("[ConfidenceCoach] Resposta do coach", content);
 
   try {
     const parsed = JSON.parse(content);
@@ -61,7 +61,7 @@ export async function evaluateConfidence({
           ? parsed.reason
           : undefined;
 
-    logger.info("[ConfidenceCoach] Resultado parseado", {
+    logger.debug("[ConfidenceCoach] Resultado parseado", {
       value,
       fillerRate,
       speechNotes,

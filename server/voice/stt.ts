@@ -2,6 +2,7 @@ import { openai } from "../services/openai";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { logger } from "@shared/logger";
 import {
   type STTModel,
   type STTResponseFormat,
@@ -44,8 +45,8 @@ export async function transcribeAudio(
   } = options;
 
   try {
-    console.log(
-      `Transcribing audio: ${audioBuffer.length} bytes, format: ${format}, model: ${model}, language: ${language}, responseFormat=${responseFormat}`
+    logger.debug(
+      `[STT] Transcribing audio (${audioBuffer.length} bytes, format=${format}, model=${model}, language=${language}, responseFormat=${responseFormat})`
     );
 
     // Create temp directory if doesn't exist
@@ -60,9 +61,9 @@ export async function transcribeAudio(
     fs.writeFileSync(tempFilePath, audioBuffer);
 
     const fileStats = fs.statSync(tempFilePath);
-    const firstBytes = audioBuffer.slice(0, 20).toString('hex');
-    console.log(`Temp file saved: ${tempFilePath}`);
-    console.log(`File size: ${fileStats.size}, First bytes (hex): ${firstBytes}`);
+    const firstBytes = audioBuffer.slice(0, 20).toString("hex");
+    logger.debug(`[STT] Temp file saved: ${tempFilePath}`);
+    logger.debug(`[STT] File size=${fileStats.size} firstBytes=${firstBytes}`);
 
     let transcription: any;
 
@@ -137,7 +138,7 @@ export async function transcribeAudio(
         ? transcription.text
         : "";
 
-    console.log(`Transcription successful: ${extractedText.substring(0, 50)}...`);
+    logger.debug(`[STT] Transcription successful: ${extractedText.substring(0, 50)}...`);
 
     const structured = isStringResponse ? undefined : transcription;
     const metadata: TranscriptMetadata = {
@@ -170,16 +171,16 @@ export async function transcribeAudio(
       metadata,
     };
   } catch (error) {
-    console.error("STT Error:", error);
+    logger.error("[STT] Error", error);
     throw new Error(`Speech-to-text failed: ${error}`);
   } finally {
     // Clean up temp file
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       try {
         fs.unlinkSync(tempFilePath);
-        console.log(`Temp file deleted: ${tempFilePath}`);
+        logger.debug(`[STT] Temp file deleted: ${tempFilePath}`);
       } catch (e) {
-        console.error("Failed to delete temp file:", e);
+        logger.error("[STT] Failed to delete temp file", e);
       }
     }
   }

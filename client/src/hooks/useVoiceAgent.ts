@@ -233,7 +233,6 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
         debugLog("Clearing streamingText after final transcript", { previous: prev });
         return "";
       });
-      updateSpeechAnalytics(text, metadata);
     } else {
       setCurrentTranscript(text);
     }

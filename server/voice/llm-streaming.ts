@@ -6,7 +6,7 @@ import type {
 } from "openai/resources/chat/completions";
 import { voiceAgentTools } from "./tools";
 import { type VoiceAgentSettings, defaultSettings, isGPT5Model } from "@shared/settings-schema";
-import { log, logger } from "@shared/logger";
+import { log } from "@shared/logger";
 
 export interface StreamChunk {
   text?: string;
@@ -70,23 +70,23 @@ export async function* streamLLMResponse(
     if (!isChatModel) {
       baseParams.reasoning_effort = effectiveSettings.reasoningEffort;
     } else {
-      logger.info(`[LLM] Ignorando reasoning_effort para modelo ${effectiveSettings.llmModel}`);
+      log.llm(`Ignorando reasoning_effort para modelo ${effectiveSettings.llmModel}`);
     }
     const resolvedVerbosity = normalizeVerbosity(
       effectiveSettings.llmModel,
       effectiveSettings.verbosity
     );
     baseParams.verbosity = resolvedVerbosity;
-    logger.info(
-      `[LLM] model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${isChatModel ? "n/a" : effectiveSettings.reasoningEffort} verbosity=${resolvedVerbosity}`
+    log.llm(
+      `model=${effectiveSettings.llmModel} max_completion_tokens=${effectiveSettings.maxTokens} reasoning=${isChatModel ? "n/a" : effectiveSettings.reasoningEffort} verbosity=${resolvedVerbosity}`
     );
   } else {
     baseParams.max_tokens = effectiveSettings.maxTokens;
-    logger.info(`[LLM] model=${effectiveSettings.llmModel} max_tokens=${effectiveSettings.maxTokens} temperature=${effectiveSettings.temperature}`);
+    log.llm(`model=${effectiveSettings.llmModel} max_tokens=${effectiveSettings.maxTokens} temperature=${effectiveSettings.temperature}`);
   }
 
-  logger.info(
-    `[LLM] streaming call model=${effectiveSettings.llmModel} messages=${messages.length} tools=${voiceAgentTools.length}`
+  log.llm(
+    `streaming call model=${effectiveSettings.llmModel} messages=${messages.length} tools=${voiceAgentTools.length}`
   );
   const stream = await openai.chat.completions.create(baseParams) as unknown as AsyncIterable<ChatCompletionChunk>;
 
@@ -214,8 +214,8 @@ export async function* streamLLMResponse(
 function normalizeVerbosity(model: string, requested: VoiceAgentSettings["verbosity"]) {
   if (model === "gpt-5-chat-latest") {
     if (requested !== "medium") {
-      logger.info(
-        `[LLM] Adjusting verbosity to 'medium' for model ${model} (valor solicitado: ${requested})`
+      log.llm(
+        `Adjusting verbosity to 'medium' for model ${model} (valor solicitado: ${requested})`
       );
     }
     return "medium";
@@ -269,8 +269,8 @@ export async function getLLMResponse(
     apiParams.max_tokens = effectiveSettings.maxTokens;
   }
 
-  logger.info(
-    `[LLM] non-stream call model=${effectiveSettings.llmModel} messages=${messages.length}`
+  log.llm(
+    `non-stream call model=${effectiveSettings.llmModel} messages=${messages.length}`
   );
   const response = await openai.chat.completions.create(apiParams);
 
