@@ -65,19 +65,9 @@ export function VoiceControls({
 
             <div
               className={cn(
-                "absolute w-full max-w-sm h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden transition-all duration-300",
+                "pointer-events-none absolute w-full max-w-sm h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden transition-all duration-300",
                 sessionActive ? "opacity-100 scale-100" : "opacity-50 scale-95"
               )}
-              onMouseDown={(e) => {
-                if (!sessionActive || !recorderReady) return;
-                e.preventDefault();
-                if (!isPressed) onStartSession();
-              }}
-              onMouseUp={(e) => {
-                if (!sessionActive || !recorderReady) return;
-                e.preventDefault();
-                if (isPressed) onStopSession();
-              }}
             >
               <WaveAnimation
                 isActive={sessionActive && recorderReady && isPressed && isRecording}
