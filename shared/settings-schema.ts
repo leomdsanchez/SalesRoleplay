@@ -76,6 +76,7 @@ export interface VoiceAgentSettings {
   sttTimestampGranularity: STTTimestampGranularity;
   sttTemperature: number;
   sttPrompt: string;
+  realtimeSttEnabled: boolean;
   ttsModel: TTSModel;
   ttsVoice: TTSVoice;
   ttsLanguage: string;
@@ -109,6 +110,7 @@ export const defaultSettings: VoiceAgentSettings = {
   sttTimestampGranularity: "none",
   sttTemperature: 0,
   sttPrompt: "",
+  realtimeSttEnabled: false,
   ttsModel: "tts-1", // More reliable than gpt-4o-mini-tts
   ttsVoice: "alloy",
   ttsLanguage: "pt",
@@ -167,6 +169,7 @@ export const voiceSettingsSchema = z.object({
   sttTimestampGranularity: z.enum(STTTimestampGranularities),
   sttTemperature: z.number().min(0).max(1),
   sttPrompt: z.string().max(2000),
+  realtimeSttEnabled: z.boolean().default(false),
   ttsModel: z.enum(TTSModels),
   ttsVoice: z.enum(TTSVoices),
   ttsLanguage: z.string().min(1),

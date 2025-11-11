@@ -4,6 +4,7 @@ import { WebSocketServer } from "ws";
 import authRoutes from "./routes/auth";
 import { setupVoiceSettingsRoutes } from "./routes/voice-settings";
 import { setupRagRoutes } from "./routes/rag";
+import { setupRealtimeSttRoutes } from "./routes/realtime-stt";
 import { VoiceSession } from "./voice/session";
 import { log, logger } from "@shared/logger";
 
@@ -12,6 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/v1/auth", authRoutes);
   setupVoiceSettingsRoutes(app);
   setupRagRoutes(app);
+  setupRealtimeSttRoutes(app);
 
   const httpServer = createServer(app);
 
