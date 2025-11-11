@@ -34,6 +34,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [confidenceReason, setConfidenceReason] = useState<string | null>(null);
   const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
   const streamingTextRef = useRef(streamingText);
 
@@ -136,8 +137,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     console.error("[VoiceAgent] Error:", error);
   }, []);
 
-  const onConfidence = useCallback((value: number) => {
+  const onConfidence = useCallback((value: number, reason?: string) => {
     setConfidence(value);
+    setConfidenceReason(reason ?? null);
   }, []);
 
   const wsCallbacks = useMemo(
@@ -207,12 +209,15 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     debugLog("Starting session");
     setSessionActive(true);
     setConfidence(null);
+    setConfidenceReason(null);
     connect();
   }, [connect]);
 
   const stopSession = useCallback(() => {
     debugLog("Stopping session");
     setSessionActive(false);
+    setConfidence(null);
+    setConfidenceReason(null);
     disconnect();
   }, [disconnect]);
 
@@ -222,6 +227,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     setCurrentTranscript("");
     setStreamingText("");
     setConfidence(null);
+    setConfidenceReason(null);
   }, []);
 
   return {
@@ -235,6 +241,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     isRecording,
     isPressed,
     confidence,
+    confidenceReason,
     settings,
 
     // Errors

@@ -1,5 +1,6 @@
 import { openai } from "../services/openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { logger } from "@shared/logger";
 
 interface ConfidenceResult {
   confidence: number;
@@ -17,6 +18,11 @@ export async function evaluateConfidence({
   prompt,
   messages,
 }: ConfidenceOptions): Promise<ConfidenceResult> {
+  logger.info("[ConfidenceCoach] Avaliando confiança", {
+    model,
+    messages: messages.length,
+  });
+
   const completion = await openai.chat.completions.create({
     model,
     response_format: { type: "json_object" },
@@ -30,6 +36,7 @@ export async function evaluateConfidence({
   if (!content) {
     throw new Error("Confidence coach retornou vazio");
   }
+  logger.info("[ConfidenceCoach] Resposta do coach", content);
 
   try {
     const parsed = JSON.parse(content);
@@ -42,16 +49,28 @@ export async function evaluateConfidence({
     );
     if (Number.isNaN(value)) value = 0;
     value = Math.min(1, Math.max(-1, value));
+    const reason =
+      typeof parsed.reason === "string"
+        ? parsed.reason
+        : typeof parsed.explanation === "string"
+          ? parsed.explanation
+          : undefined;
+
+    logger.info("[ConfidenceCoach] Resultado parseado", {
+      value,
+      reason,
+    });
+
     return {
       confidence: value,
-      reason:
-        typeof parsed.reason === "string"
-          ? parsed.reason
-          : typeof parsed.explanation === "string"
-            ? parsed.explanation
-            : undefined,
+      reason,
     };
   } catch (error) {
+    logger.error(
+      "[ConfidenceCoach] Falha ao parsear",
+      error instanceof Error ? error.message : String(error),
+      content
+    );
     throw new Error(`Falha ao parsear confiança: ${error}`);
   }
 }

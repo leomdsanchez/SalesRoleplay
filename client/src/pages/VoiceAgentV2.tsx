@@ -28,6 +28,7 @@ export default function VoiceAgentV2() {
     isPressed,
     error,
     confidence,
+    confidenceReason,
     settings: agentSettings,
     startSession,
     stopSession,
@@ -89,8 +90,6 @@ export default function VoiceAgentV2() {
           messages={messages}
           currentTranscript={currentTranscript}
           streamingText={streamingText}
-          confidence={confidence ?? undefined}
-          showConfidence={agentSettings?.confidenceVisible}
         />
       </div>
 
@@ -105,7 +104,9 @@ export default function VoiceAgentV2() {
               <div className="bg-white shadow-lg border rounded-lg px-4 py-3 text-sm text-slate-600 flex flex-col gap-2 w-64">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-slate-900">Confiança</span>
-                  <span className="text-slate-900 font-semibold">
+                  <span
+                    className={clamped < 0 ? "text-red-600 font-semibold" : "text-emerald-600 font-semibold"}
+                  >
                     {clamped.toFixed(2)}
                   </span>
                 </div>
@@ -128,6 +129,9 @@ export default function VoiceAgentV2() {
                   <span>0</span>
                   <span>1</span>
                 </div>
+                {confidenceReason && (
+                  <p className="text-xs text-slate-500">{confidenceReason}</p>
+                )}
               </div>
             );
           })()}

@@ -7,8 +7,6 @@ interface VoiceChatProps {
   messages: Message[];
   currentTranscript: string;
   streamingText: string;
-  confidence?: number | null;
-  showConfidence?: boolean;
 }
 
 /**
@@ -18,8 +16,6 @@ export function VoiceChat({
   messages,
   currentTranscript,
   streamingText,
-  confidence,
-  showConfidence,
 }: VoiceChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
