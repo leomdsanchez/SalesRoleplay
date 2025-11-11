@@ -18,7 +18,7 @@ const debugLog = (...args: any[]) => {
 };
 
 export interface VoiceWebSocketCallbacks {
-  onTranscript?: (text: string, isFinal: boolean) => void;
+  onTranscript?: (text: string, isFinal: boolean, metadata?: TranscriptMessage["data"]["metadata"]) => void;
   onAgentText?: (text: string, isComplete: boolean, isSentence?: boolean) => void;
   onAgentAudio?: (audioBase64: string) => void;
   onSessionStarted?: () => void;
@@ -66,7 +66,7 @@ export function useVoiceWebSocket(
       switch (message.type) {
         case VoiceMessageType.TRANSCRIPT:
           const transcriptMsg = message as TranscriptMessage;
-          callbacks.onTranscript?.(transcriptMsg.data.text, transcriptMsg.data.isFinal);
+          callbacks.onTranscript?.(transcriptMsg.data.text, transcriptMsg.data.isFinal, transcriptMsg.data.metadata);
           break;
 
         case VoiceMessageType.AGENT_TEXT:

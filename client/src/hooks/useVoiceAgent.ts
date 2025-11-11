@@ -4,7 +4,7 @@ import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
 import type { VoiceAgentSettings } from "@shared/settings-schema";
-import type { RagReference } from "@shared/voice-types";
+import type { RagReference, TranscriptMessage } from "@shared/voice-types";
 
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
@@ -52,7 +52,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   }, [clearQueue]);
 
   // WebSocket callbacks (memoized to prevent re-creation)
-  const onTranscript = useCallback((text: string, isFinal: boolean) => {
+  const onTranscript = useCallback((text: string, isFinal: boolean, metadata?: TranscriptMessage["data"]["metadata"]) => {
     if (isFinal) {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       setCurrentTranscript("");

@@ -114,17 +114,20 @@ export class VoiceSession {
     try {
       // Step 1: Speech-to-Text
       const audioBuffer = Buffer.from(message.data.audio, "base64");
-      const { text: userText } = await transcribeAudio(
-        audioBuffer,
-        message.data.format,
-        this.settings?.sttModel,
-        this.settings?.sttLanguage
-      );
+      const { text: userText, metadata: transcriptMetadata } = await transcribeAudio(audioBuffer, {
+        format: message.data.format,
+        model: this.settings?.sttModel,
+        language: this.settings?.sttLanguage,
+        responseFormat: this.settings?.sttResponseFormat,
+        timestampGranularity: this.settings?.sttTimestampGranularity,
+        temperature: this.settings?.sttTemperature,
+        prompt: this.settings?.sttPrompt,
+      });
 
       // Send transcript to client
       this.send({
         type: VoiceMessageType.TRANSCRIPT,
-        data: { text: userText, isFinal: true },
+        data: { text: userText, isFinal: true, metadata: transcriptMetadata },
       });
 
       await this.updateConfidence(userText);

@@ -41,11 +41,23 @@ export interface StartSessionMessage extends VoiceMessage {
 }
 
 // Server → Client messages
+export type TranscriptResponseFormat = "text" | "json" | "verbose_json";
+
+export interface TranscriptMetadata {
+  format: TranscriptResponseFormat;
+  durationSeconds?: number;
+  language?: string;
+  segments?: Array<Record<string, any>>;
+  words?: Array<Record<string, any>>;
+  raw?: Record<string, any>;
+}
+
 export interface TranscriptMessage extends VoiceMessage {
   type: VoiceMessageType.TRANSCRIPT;
   data: {
     text: string;
     isFinal: boolean;
+    metadata?: TranscriptMetadata;
   };
 }
 

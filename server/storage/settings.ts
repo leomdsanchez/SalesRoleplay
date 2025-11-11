@@ -12,7 +12,11 @@ export const settingsStorage = {
       .all();
 
     if (rows.length > 0) {
-      return JSON.parse(rows[0].settings);
+      const stored = JSON.parse(rows[0].settings);
+      return {
+        ...defaultSettings,
+        ...stored,
+      };
     }
 
     return defaultSettings;

@@ -57,6 +57,7 @@ describe("Settings Schema", () => {
   describe("Zod Validation", () => {
     it("should validate correct voice settings", () => {
       const validSettings = {
+        ...defaultSettings,
         llmModel: "gpt-4o-mini" as const,
         temperature: 0.7,
         maxTokens: 2000,
@@ -64,7 +65,11 @@ describe("Settings Schema", () => {
         reasoningEffort: "low" as const,
         verbosity: "medium" as const,
         sttModel: "gpt-4o-transcribe" as const,
-        sttLanguage: "pt",
+        sttLanguage: "pt-BR",
+        sttResponseFormat: "text" as const,
+        sttTimestampGranularity: "segment" as const,
+        sttTemperature: 0.2,
+        sttPrompt: "Mantenha fillers",
         ttsModel: "gpt-4o-mini-tts" as const,
         ttsVoice: "alloy" as const,
         ttsLanguage: "pt",

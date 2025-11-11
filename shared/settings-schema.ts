@@ -21,6 +21,19 @@ export const STTModels = [
   "whisper-1" // Legacy Whisper model for compatibility
 ] as const;
 
+export const STTResponseFormats = [
+  "json",          // Structured output with segments, best for analytics
+  "text",          // Plain text only
+  "verbose_json",  // Whisper-only: includes word-level timestamps
+] as const;
+
+export const STTTimestampGranularities = [
+  "none",                // Skip timestamp array to minimize payload
+  "segment",             // Segment-level timestamps (default for json)
+  "word",                // Word-level timestamps (Whisper only)
+  "segment_and_word",    // Both segment + word arrays (Whisper only)
+] as const;
+
 export const TTSModels = [
   "gpt-4o-mini-tts", // Next-gen TTS with better steerability and naturalness
   "tts-1", // Standard quality
@@ -38,6 +51,8 @@ export const TTSVoices = [
 
 export type LLMModel = (typeof LLMModels)[number];
 export type STTModel = (typeof STTModels)[number];
+export type STTResponseFormat = (typeof STTResponseFormats)[number];
+export type STTTimestampGranularity = (typeof STTTimestampGranularities)[number];
 export type TTSModel = (typeof TTSModels)[number];
 export type TTSVoice = (typeof TTSVoices)[number];
 
@@ -55,6 +70,10 @@ export interface VoiceAgentSettings {
   // Voice settings
   sttModel: STTModel;
   sttLanguage: string;
+  sttResponseFormat: STTResponseFormat;
+  sttTimestampGranularity: STTTimestampGranularity;
+  sttTemperature: number;
+  sttPrompt: string;
   ttsModel: TTSModel;
   ttsVoice: TTSVoice;
   ttsLanguage: string;
@@ -84,6 +103,10 @@ export const defaultSettings: VoiceAgentSettings = {
   
   sttModel: "gpt-4o-transcribe",
   sttLanguage: "pt",
+  sttResponseFormat: "json",
+  sttTimestampGranularity: "none",
+  sttTemperature: 0,
+  sttPrompt: "",
   ttsModel: "tts-1", // More reliable than gpt-4o-mini-tts
   ttsVoice: "alloy",
   ttsLanguage: "pt",
@@ -138,6 +161,10 @@ export const voiceSettingsSchema = z.object({
   
   sttModel: z.enum(STTModels),
   sttLanguage: z.string().min(1),
+  sttResponseFormat: z.enum(STTResponseFormats),
+  sttTimestampGranularity: z.enum(STTTimestampGranularities),
+  sttTemperature: z.number().min(0).max(1),
+  sttPrompt: z.string().max(2000),
   ttsModel: z.enum(TTSModels),
   ttsVoice: z.enum(TTSVoices),
   ttsLanguage: z.string().min(1),
