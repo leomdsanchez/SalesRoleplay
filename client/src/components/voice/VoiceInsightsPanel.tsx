@@ -155,9 +155,10 @@ function ConfidenceMeter({ value, notes }: ConfidenceMeterProps) {
       </div>
 
       <MetricBar
-        percentage={((clamped + 1) / 2) * 100}
+        percentage={clamped * 100}
         theme={theme.name}
         targetRange={{ start: 45, end: 55, color: "rgba(209,213,219,0.6)" }}
+        bipolar
       />
 
       <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -268,12 +269,16 @@ interface MetricBarProps {
   percentage: number | null;
   theme: MetricTheme;
   targetRange?: { start: number; end: number; color?: string };
+  bipolar?: boolean;
 }
 
-function MetricBar({ percentage, theme, targetRange }: MetricBarProps) {
+function MetricBar({ percentage, theme, targetRange, bipolar = false }: MetricBarProps) {
   const colors = themeConfig[theme];
-  const clamped = percentage == null ? null : Math.max(0, Math.min(100, percentage));
+  const clamped = percentage == null ? null : Math.max(bipolar ? -100 : 0, Math.min(100, percentage));
   const targetWidth = targetRange ? Math.max(0, targetRange.end - targetRange.start) : 0;
+  const fillWidth = clamped == null ? null : bipolar ? Math.abs(clamped) / 2 : clamped;
+  const fillStart = bipolar && fillWidth != null ? (clamped! < 0 ? 50 - fillWidth : 50) : 0;
+  const knobPosition = clamped == null ? null : bipolar ? 50 + clamped / 2 : clamped;
 
   return (
     <div className="relative h-3 rounded-full bg-slate-200 overflow-hidden">
@@ -283,16 +288,20 @@ function MetricBar({ percentage, theme, targetRange }: MetricBarProps) {
           style={{ left: `${targetRange.start}%`, width: `${targetWidth}%`, background: targetRange.color ?? "rgba(209,213,219,0.5)" }}
         />
       )}
-      {clamped != null && (
+      {fillWidth != null && (
         <div
           className="absolute top-0 bottom-0 rounded-full"
-          style={{ width: `${clamped}%`, background: colors.fill }}
+          style={{
+            width: `${fillWidth}%`,
+            left: bipolar ? `${fillStart}%` : 0,
+            background: colors.fill,
+          }}
         />
       )}
-      {clamped != null && (
+      {knobPosition != null && (
         <div
           className="absolute top-1/2 h-4 w-4 -mt-2 rounded-full border-2 border-white shadow-sm"
-          style={{ left: `${clamped}%`, transform: "translateX(-50%)", background: colors.knob }}
+          style={{ left: `${knobPosition}%`, transform: "translateX(-50%)", background: colors.knob }}
         />
       )}
     </div>

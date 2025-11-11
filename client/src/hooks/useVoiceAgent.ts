@@ -459,6 +459,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     speechAnalytics,
     coachMetrics,
     settings,
+    sessionActive,
 
     // Errors
     error: wsError || recorderError,

@@ -36,6 +36,7 @@ export default function VoiceAgentV2() {
     settings: agentSettings,
     startSession,
     stopSession,
+    sessionActive,
   } = useVoiceAgent({
     userId: user?.id,
   });
@@ -106,6 +107,7 @@ export default function VoiceAgentV2() {
               isRecording={isRecording}
               isPressed={isPressed}
               recorderReady={recorderReady}
+              sessionActive={sessionActive}
               currentTranscript={currentTranscript}
               isConnected={isConnected}
               error={error}
