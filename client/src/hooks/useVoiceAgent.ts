@@ -392,6 +392,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     isReady: recorderReady,
     isActive: isRecording,
     error: recorderError,
+    inputLevel,
     startRecording,
     stopRecording,
   } = usePushToTalkRecorder({
@@ -418,18 +419,12 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const startSession = useCallback(() => {
     debugLog("Starting session");
     setSessionActive(true);
-    setConfidence(null);
-    setCoachNotes(null);
-    setCoachMetrics(null);
     connect();
   }, [connect]);
 
   const stopSession = useCallback(() => {
     debugLog("Stopping session");
     setSessionActive(false);
-    setConfidence(null);
-    setCoachNotes(null);
-    setCoachMetrics(null);
     disconnect();
   }, [disconnect]);
 
@@ -460,6 +455,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     coachMetrics,
     settings,
     sessionActive,
+    inputLevel,
 
     // Errors
     error: wsError || recorderError,

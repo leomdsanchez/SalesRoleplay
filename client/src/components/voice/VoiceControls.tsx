@@ -12,6 +12,7 @@ interface VoiceControlsProps {
   error: string | null;
   onStartSession: () => void;
   onStopSession: () => void;
+  inputLevel: number;
 }
 
 /**
@@ -27,6 +28,7 @@ export function VoiceControls({
   error,
   onStartSession,
   onStopSession,
+  inputLevel,
 }: VoiceControlsProps) {
   return (
     <div className="flex-shrink-0 border-t bg-white/80 backdrop-blur-sm">
@@ -47,14 +49,18 @@ export function VoiceControls({
                 if (!pressed && sessionActive) onStopSession();
               }}
               className={cn(
-                "w-12 h-12 rounded-full border border-slate-200 shadow-sm transition-transform duration-500",
-                sessionActive ? "bg-emerald-50" : "bg-white",
-                sessionActive ? "-translate-x-[6rem] md:-translate-x-[9rem]" : "translate-x-0",
-                sessionActive && "animate-[pulse_1.8s_ease-in-out_infinite]"
+                "relative z-10 w-12 h-12 rounded-full border shadow-sm transition-transform duration-500",
+                "data-[state=on]:bg-blue-500 data-[state=on]:border-blue-400 data-[state=on]:text-white",
+                "data-[state=off]:bg-white data-[state=off]:border-slate-200 data-[state=off]:text-slate-500",
+                sessionActive ? "-translate-x-[6rem] md:-translate-x-[9rem]" : "translate-x-0"
               )}
               aria-label="Ativar microfone"
             >
-              {sessionActive ? <Mic className="w-5 h-5 text-emerald-600" /> : <MicOff className="w-5 h-5 text-slate-500" />}
+              {sessionActive ? (
+                <Mic className="w-5 h-5 text-white" />
+              ) : (
+                <MicOff className="w-5 h-5 text-slate-500" />
+              )}
             </Toggle>
 
             <div
@@ -74,15 +80,10 @@ export function VoiceControls({
               }}
             >
               <WaveAnimation
-                active={sessionActive && recorderReady && isPressed}
-                subtle={sessionActive && (!isPressed || !recorderReady)}
+                isActive={sessionActive && recorderReady && isPressed && isRecording}
+                inputLevel={inputLevel}
               />
             </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <div>{sessionActive ? (recorderReady ? "Mic pronto" : "Ativando microfone...") : "Ative o mic"}</div>
-            {sessionActive && <span className="uppercase tracking-wide">Hold to talk</span>}
           </div>
 
           {error && (
@@ -97,33 +98,29 @@ export function VoiceControls({
   );
 }
 
-function WaveAnimation({ active, subtle }: { active: boolean; subtle: boolean }) {
-  const bars = [0, 80, 160];
+function WaveAnimation({ isActive, inputLevel }: { isActive: boolean; inputLevel: number }) {
+  const bars = [0.8, 1.2, 1];
   return (
-    <div className="flex gap-2">
-      {bars.map((delay) => (
-        <span
-          key={delay}
-          className={cn("inline-block w-1.5 rounded-full", active ? "bg-rose-500" : "bg-slate-400")}
-          style={{
-            height: "18px",
-            animation: active ? `wave 1s ${delay}ms infinite` : subtle ? `waveIdle 1.8s ${delay}ms infinite` : "none",
-            opacity: active ? 1 : subtle ? 0.6 : 0.4,
-          }}
-        />
-      ))}
-      <style>
-        {`
-          @keyframes wave {
-            0%, 100% { transform: scaleY(0.4); }
-            50% { transform: scaleY(1.4); }
-          }
-          @keyframes waveIdle {
-            0%, 100% { transform: scaleY(0.4); }
-            50% { transform: scaleY(0.8); }
-          }
-        `}
-      </style>
+    <div className={cn("flex items-end", isActive ? "gap-3" : "gap-2")}>
+      {bars.map((multiplier, index) => {
+        const level = Math.min(1, inputLevel * multiplier);
+        const height = isActive ? 8 + level * 28 : 8;
+        const width = isActive ? 6 : 9;
+        return (
+          <span
+            key={index}
+            className={cn(
+              "block rounded-full transition-[height,width,opacity,background-color] duration-150 ease-out",
+              isActive ? "bg-blue-500" : "bg-slate-400"
+            )}
+            style={{
+              height,
+              width,
+              opacity: isActive ? 0.95 : 0.6,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

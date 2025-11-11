@@ -37,6 +37,7 @@ export default function VoiceAgentV2() {
     startSession,
     stopSession,
     sessionActive,
+    inputLevel,
   } = useVoiceAgent({
     userId: user?.id,
   });
@@ -113,6 +114,7 @@ export default function VoiceAgentV2() {
               error={error}
               onStartSession={startSession}
               onStopSession={stopSession}
+              inputLevel={inputLevel}
             />
           </div>
         </div>

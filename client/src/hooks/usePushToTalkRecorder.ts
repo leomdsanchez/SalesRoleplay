@@ -18,11 +18,79 @@ export function usePushToTalkRecorder({
   const [isActive, setIsActive] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputLevel, setInputLevel] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const shouldSendRef = useRef(false);
   const isProcessingRef = useRef(false); // Prevent duplicate calls
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const levelRafRef = useRef<number | null>(null);
+  const levelRef = useRef(0);
+
+  const stopLevelMonitor = useCallback(() => {
+    if (levelRafRef.current) {
+      cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = null;
+    }
+    analyserRef.current = null;
+    dataArrayRef.current = null;
+    levelRef.current = 0;
+    setInputLevel(0);
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+  }, []);
+
+  const startLevelMonitor = useCallback((stream: MediaStream) => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        console.warn("[PushToTalk] AudioContext not supported");
+        return;
+      }
+
+      const audioContext = new AudioContextClass();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const bufferLength = analyser.fftSize;
+      const dataArray = new Uint8Array(bufferLength);
+
+      audioContextRef.current = audioContext as AudioContext;
+      analyserRef.current = analyser;
+      dataArrayRef.current = dataArray;
+
+      const updateLevel = () => {
+        if (!analyserRef.current || !dataArrayRef.current) return;
+
+        analyserRef.current.getByteTimeDomainData(dataArrayRef.current);
+
+        let sumSquares = 0;
+        for (let i = 0; i < dataArrayRef.current.length; i++) {
+          const value = (dataArrayRef.current[i] - 128) / 128;
+          sumSquares += value * value;
+        }
+
+        const rms = Math.sqrt(sumSquares / dataArrayRef.current.length);
+        const scaledLevel = Math.min(1, rms * 4); // Boost sensitivity
+        const smoothLevel = levelRef.current * 0.8 + scaledLevel * 0.2;
+        levelRef.current = smoothLevel;
+        setInputLevel(smoothLevel);
+
+        levelRafRef.current = requestAnimationFrame(updateLevel);
+      };
+
+      updateLevel();
+    } catch (err) {
+      console.warn("[PushToTalk] Failed to start level monitor:", err);
+    }
+  }, []);
 
   // Initialize MediaRecorder
   const initialize = useCallback(async () => {
@@ -53,6 +121,7 @@ export function usePushToTalkRecorder({
       mediaRecorderRef.current = mediaRecorder;
       setIsReady(true);
       setError(null);
+      startLevelMonitor(stream);
       
       console.log("[PushToTalk] Ready!");
     } catch (err: any) {
@@ -60,7 +129,7 @@ export function usePushToTalkRecorder({
       setError(err.message);
       setIsReady(false);
     }
-  }, [onAudioReady]);
+  }, [onAudioReady, startLevelMonitor]);
 
   // Cleanup
   const cleanup = useCallback(() => {
@@ -74,11 +143,12 @@ export function usePushToTalkRecorder({
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    stopLevelMonitor();
 
     mediaRecorderRef.current = null;
     setIsReady(false);
     setIsActive(false);
-  }, []);
+  }, [stopLevelMonitor]);
 
   // Start recording (when user presses)
   const startRecording = useCallback(() => {
@@ -162,6 +232,7 @@ export function usePushToTalkRecorder({
     isReady,
     isActive,
     error,
+    inputLevel,
     startRecording,
     stopRecording,
   };
