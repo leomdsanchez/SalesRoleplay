@@ -6,6 +6,63 @@ import { useAudioPlayer } from "./useAudioPlayer";
 import type { VoiceAgentSettings } from "@shared/settings-schema";
 import type { RagReference, TranscriptMessage } from "@shared/voice-types";
 
+const FILLER_WORDS = [
+  "uh",
+  "um",
+  "ah",
+  "er",
+  "erm",
+  "huh",
+  "hmm",
+  "né",
+  "é",
+  "hã",
+  "tipo",
+  "assim",
+  "bom",
+  "sabe",
+  "então",
+  "ahm",
+  "éé",
+  "ééé",
+  "like",
+] as const;
+
+const FILLER_SET = new Set(FILLER_WORDS);
+
+export interface SpeechAnalytics {
+  hasGranularData: boolean;
+  totalWords: number;
+  totalDurationSec: number;
+  averageWpm: number | null;
+  lastWpm: number | null;
+  fillerWords: number;
+  fillerRate: number | null;
+  lastFillerCount: number | null;
+  sampleCount: number;
+}
+
+const createEmptyAnalytics = (): SpeechAnalytics => ({
+  hasGranularData: false,
+  totalWords: 0,
+  totalDurationSec: 0,
+  averageWpm: null,
+  lastWpm: null,
+  fillerWords: 0,
+  fillerRate: null,
+  lastFillerCount: null,
+  sampleCount: 0,
+});
+
+const countFillerWords = (text: string): number => {
+  if (!text) return 0;
+  const tokens = text
+    .toLowerCase()
+    .split(/[\s,.;:!?()\[\]"'“”‘’\-]+/)
+    .filter(Boolean);
+  return tokens.reduce((acc, token) => acc + (FILLER_SET.has(token as any) ? 1 : 0), 0);
+};
+
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
   if (!DEBUG_VOICE_AGENT) return;
@@ -36,6 +93,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [confidence, setConfidence] = useState<number | null>(null);
   const [confidenceReason, setConfidenceReason] = useState<string | null>(null);
   const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
+  const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalytics | null>(null);
   const streamingTextRef = useRef(streamingText);
 
   useEffect(() => {
@@ -51,6 +109,60 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     clearQueueRef.current = clearQueue;
   }, [clearQueue]);
 
+  const updateSpeechAnalytics = useCallback((text: string, metadata?: TranscriptMessage["data"]["metadata"]) => {
+    if (!metadata) {
+      return;
+    }
+
+    const hasGranular =
+      Array.isArray(metadata.words) &&
+      typeof metadata.durationSeconds === "number" &&
+      metadata.durationSeconds > 0;
+
+    if (!hasGranular) {
+      setSpeechAnalytics((prev) => prev ?? createEmptyAnalytics());
+      return;
+    }
+
+    setSpeechAnalytics((prev) => {
+      const base = prev ?? createEmptyAnalytics();
+      const wordEntries = (metadata.words ?? []) as Array<{ word?: string }>;
+      const duration = metadata.durationSeconds ?? 0;
+      const wordCount =
+        wordEntries.length || text.trim().split(/\s+/).filter(Boolean).length;
+
+      if (wordCount === 0 || duration === 0) {
+        return base;
+      }
+
+      const fillerSource =
+        wordEntries.length > 0
+          ? wordEntries.map((entry) => entry?.word ?? "").join(" ")
+          : text;
+
+      const totalWords = base.totalWords + wordCount;
+      const totalDurationSec = base.totalDurationSec + duration;
+      const lastWpm = wordCount / (duration / 60);
+      const averageWpm =
+        totalDurationSec > 0 ? totalWords / (totalDurationSec / 60) : null;
+      const fillerCount = countFillerWords(fillerSource);
+      const fillerWords = base.fillerWords + fillerCount;
+      const fillerRate = totalWords > 0 ? fillerWords / totalWords : null;
+
+      return {
+        hasGranularData: true,
+        totalWords,
+        totalDurationSec,
+        averageWpm,
+        lastWpm,
+        fillerWords,
+        fillerRate,
+        lastFillerCount: fillerCount,
+        sampleCount: base.sampleCount + 1,
+      };
+    });
+  }, []);
+
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean, metadata?: TranscriptMessage["data"]["metadata"]) => {
     if (isFinal) {
@@ -61,10 +173,11 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
         debugLog("Clearing streamingText after final transcript", { previous: prev });
         return "";
       });
+      updateSpeechAnalytics(text, metadata);
     } else {
       setCurrentTranscript(text);
     }
-  }, []);
+  }, [updateSpeechAnalytics]);
 
   const onAgentText = useCallback((text: string, isComplete: boolean, isSentence?: boolean) => {
     if (isComplete) {
@@ -228,6 +341,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     setStreamingText("");
     setConfidence(null);
     setConfidenceReason(null);
+    setSpeechAnalytics(null);
   }, []);
 
   return {
@@ -242,6 +356,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     isPressed,
     confidence,
     confidenceReason,
+    speechAnalytics,
     settings,
 
     // Errors
