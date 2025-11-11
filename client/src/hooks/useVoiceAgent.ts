@@ -4,7 +4,7 @@ import { usePushToTalkKeyboard } from "./usePushToTalkKeyboard";
 import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import { useAudioPlayer } from "./useAudioPlayer";
 import type { VoiceAgentSettings } from "@shared/settings-schema";
-import type { RagReference, TranscriptMessage } from "@shared/voice-types";
+import type { RagReference, TranscriptMessage, CoachUpdateData } from "@shared/voice-types";
 
 const FILLER_WORDS = [
   "uh",
@@ -30,6 +30,17 @@ const FILLER_WORDS = [
 
 const FILLER_SET = new Set(FILLER_WORDS);
 
+export interface SpeechMeta {
+  durationSec?: number;
+  wordCount?: number;
+  wpm?: number;
+  fillerRate?: number;
+  fillerCount?: number;
+  source?: "stt" | "coach";
+  coachFillerRate?: number | null;
+  coachNotes?: string | null;
+}
+
 export interface SpeechAnalytics {
   hasGranularData: boolean;
   totalWords: number;
@@ -40,6 +51,12 @@ export interface SpeechAnalytics {
   fillerRate: number | null;
   lastFillerCount: number | null;
   sampleCount: number;
+}
+
+export interface CoachMetrics {
+  fillerRate: number | null;
+  speechNotes?: string | null;
+  source?: "coach" | "stt";
 }
 
 const createEmptyAnalytics = (): SpeechAnalytics => ({
@@ -63,6 +80,8 @@ const countFillerWords = (text: string): number => {
   return tokens.reduce((acc, token) => acc + (FILLER_SET.has(token as any) ? 1 : 0), 0);
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
   if (!DEBUG_VOICE_AGENT) return;
@@ -73,6 +92,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   ragReferences?: RagReference[];
+  speechMeta?: SpeechMeta | null;
 }
 
 export interface UseVoiceAgentOptions {
@@ -91,9 +111,10 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [streamingText, setStreamingText] = useState("");
   const [confidence, setConfidence] = useState<number | null>(null);
-  const [confidenceReason, setConfidenceReason] = useState<string | null>(null);
+  const [coachNotes, setCoachNotes] = useState<string | null>(null);
   const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
   const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalytics | null>(null);
+  const [coachMetrics, setCoachMetrics] = useState<CoachMetrics | null>(null);
   const streamingTextRef = useRef(streamingText);
 
   useEffect(() => {
@@ -109,64 +130,103 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     clearQueueRef.current = clearQueue;
   }, [clearQueue]);
 
-  const updateSpeechAnalytics = useCallback((text: string, metadata?: TranscriptMessage["data"]["metadata"]) => {
-    if (!metadata) {
-      return;
-    }
+  const updateSpeechAnalytics = useCallback(
+    (text: string, metadata?: TranscriptMessage["data"]["metadata"]): SpeechMeta | null => {
+      if (!metadata) {
+        return null;
+      }
 
-    const hasGranular =
-      Array.isArray(metadata.words) &&
-      typeof metadata.durationSeconds === "number" &&
-      metadata.durationSeconds > 0;
-
-    if (!hasGranular) {
-      setSpeechAnalytics((prev) => prev ?? createEmptyAnalytics());
-      return;
-    }
-
-    setSpeechAnalytics((prev) => {
-      const base = prev ?? createEmptyAnalytics();
       const wordEntries = (metadata.words ?? []) as Array<{ word?: string }>;
-      const duration = metadata.durationSeconds ?? 0;
-      const wordCount =
-        wordEntries.length || text.trim().split(/\s+/).filter(Boolean).length;
+      const segmentWordCount = (metadata.segments ?? metadata.diarizedSegments ?? []).reduce(
+        (total, segment) => {
+          if (segment?.text) {
+            return total + segment.text.split(/\s+/).filter(Boolean).length;
+          }
+          return total;
+        },
+        0
+      );
+      const fallbackWordCount = text.trim().split(/\s+/).filter(Boolean).length;
+      const wordCount = wordEntries.length || segmentWordCount || fallbackWordCount;
 
-      if (wordCount === 0 || duration === 0) {
-        return base;
+      const deriveDuration = () => {
+        if (typeof metadata.durationSeconds === "number" && metadata.durationSeconds > 0) {
+          return metadata.durationSeconds;
+        }
+        const rawDuration = (metadata.raw as any)?.duration ?? (metadata.raw as any)?.durationSeconds;
+        if (typeof rawDuration === "number" && rawDuration > 0) {
+          return rawDuration;
+        }
+        const usageDuration = (metadata.raw as any)?.usage?.seconds;
+        if (typeof usageDuration === "number" && usageDuration > 0) {
+          return usageDuration;
+        }
+        const segments = metadata.segments ?? metadata.diarizedSegments;
+        if (Array.isArray(segments) && segments.length > 0) {
+          const lastEnd = segments.reduce((max, seg) => Math.max(max, seg?.end ?? 0), 0);
+          if (lastEnd > 0) {
+            return lastEnd;
+          }
+        }
+        return null;
+      };
+
+      const duration = deriveDuration();
+
+      if (!duration || duration <= 0 || wordCount === 0) {
+        return null;
       }
 
       const fillerSource =
         wordEntries.length > 0
           ? wordEntries.map((entry) => entry?.word ?? "").join(" ")
-          : text;
+          : (metadata.segments ?? metadata.diarizedSegments ?? [])
+              .map((segment) => segment?.text ?? "")
+              .join(" ")
+              .trim() || text;
 
-      const totalWords = base.totalWords + wordCount;
-      const totalDurationSec = base.totalDurationSec + duration;
-      const lastWpm = wordCount / (duration / 60);
-      const averageWpm =
-        totalDurationSec > 0 ? totalWords / (totalDurationSec / 60) : null;
       const fillerCount = countFillerWords(fillerSource);
-      const fillerWords = base.fillerWords + fillerCount;
-      const fillerRate = totalWords > 0 ? fillerWords / totalWords : null;
+      const instantWpm = wordCount / (duration / 60);
+      const instantFillerRate = wordCount > 0 ? fillerCount / wordCount : null;
+
+      setSpeechAnalytics((prev) => {
+        const base = prev ?? createEmptyAnalytics();
+        const totalWords = base.totalWords + wordCount;
+        const totalDurationSec = base.totalDurationSec + duration;
+        const averageWpm = totalDurationSec > 0 ? totalWords / (totalDurationSec / 60) : null;
+        const fillerWords = base.fillerWords + fillerCount;
+        const fillerRate = totalWords > 0 ? fillerWords / totalWords : null;
+
+        return {
+          hasGranularData: true,
+          totalWords,
+          totalDurationSec,
+          averageWpm,
+          lastWpm: instantWpm,
+          fillerWords,
+          fillerRate,
+          lastFillerCount: fillerCount,
+          sampleCount: base.sampleCount + 1,
+        };
+      });
 
       return {
-        hasGranularData: true,
-        totalWords,
-        totalDurationSec,
-        averageWpm,
-        lastWpm,
-        fillerWords,
-        fillerRate,
-        lastFillerCount: fillerCount,
-        sampleCount: base.sampleCount + 1,
+        durationSec: duration,
+        wordCount,
+        wpm: instantWpm,
+        fillerRate: instantFillerRate ?? undefined,
+        fillerCount,
+        source: "stt",
       };
-    });
-  }, []);
+    },
+    []
+  );
 
   // WebSocket callbacks (memoized to prevent re-creation)
   const onTranscript = useCallback((text: string, isFinal: boolean, metadata?: TranscriptMessage["data"]["metadata"]) => {
     if (isFinal) {
-      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      const speechMeta = updateSpeechAnalytics(text, metadata);
+      setMessages((prev) => [...prev, { role: "user", content: text, speechMeta }]);
       setCurrentTranscript("");
       // Clear streaming text when user finishes speaking - new assistant response should start fresh
       setStreamingText((prev) => {
@@ -204,6 +264,48 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
       setStreamingText((prev) => {
         const next = prev === "" ? text : prev + " " + text;
         debugLog("Updating streamingText with chunk", { text, previous: prev, next });
+        return next;
+      });
+    }
+  }, []);
+
+  const handleCoachUpdate = useCallback((data: CoachUpdateData) => {
+    if (!data || typeof data !== "object") {
+      return;
+    }
+    if (typeof data.confidence === "number") {
+      setConfidence(data.confidence);
+    }
+    setCoachNotes(typeof data.speechNotes === "string" ? data.speechNotes : null);
+
+    const normalizedFiller =
+      typeof data.fillerRate === "number"
+        ? clamp(data.fillerRate > 1 ? data.fillerRate / 100 : data.fillerRate, 0, 1)
+        : null;
+
+    setCoachMetrics({
+      fillerRate: normalizedFiller,
+      speechNotes: typeof data.speechNotes === "string" ? data.speechNotes : null,
+      source: data.source ?? "coach",
+    });
+
+    if (normalizedFiller != null || data.speechNotes) {
+      setMessages((prev) => {
+        if (!prev.length) return prev;
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === "user") {
+            next[i] = {
+              ...next[i],
+              speechMeta: {
+                ...next[i].speechMeta,
+                coachFillerRate: normalizedFiller ?? next[i].speechMeta?.coachFillerRate,
+                coachNotes: typeof data.speechNotes === "string" ? data.speechNotes : next[i].speechMeta?.coachNotes,
+              },
+            };
+            break;
+          }
+        }
         return next;
       });
     }
@@ -250,11 +352,6 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     console.error("[VoiceAgent] Error:", error);
   }, []);
 
-  const onConfidence = useCallback((value: number, reason?: string) => {
-    setConfidence(value);
-    setConfidenceReason(reason ?? null);
-  }, []);
-
   const wsCallbacks = useMemo(
     () => ({
       onTranscript,
@@ -263,9 +360,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
       onSessionStarted,
       onError,
       onRagContext,
-      onConfidence,
+      onCoachUpdate: handleCoachUpdate,
     }),
-    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError, onRagContext, onConfidence]
+    [onTranscript, onAgentText, onAgentAudio, onSessionStarted, onError, onRagContext, handleCoachUpdate]
   );
 
   // WebSocket
@@ -322,7 +419,8 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     debugLog("Starting session");
     setSessionActive(true);
     setConfidence(null);
-    setConfidenceReason(null);
+    setCoachNotes(null);
+    setCoachMetrics(null);
     connect();
   }, [connect]);
 
@@ -330,7 +428,8 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     debugLog("Stopping session");
     setSessionActive(false);
     setConfidence(null);
-    setConfidenceReason(null);
+    setCoachNotes(null);
+    setCoachMetrics(null);
     disconnect();
   }, [disconnect]);
 
@@ -340,8 +439,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     setCurrentTranscript("");
     setStreamingText("");
     setConfidence(null);
-    setConfidenceReason(null);
+    setCoachNotes(null);
     setSpeechAnalytics(null);
+    setCoachMetrics(null);
   }, []);
 
   return {
@@ -355,8 +455,9 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     isRecording,
     isPressed,
     confidence,
-    confidenceReason,
+    coachNotes,
     speechAnalytics,
+    coachMetrics,
     settings,
 
     // Errors

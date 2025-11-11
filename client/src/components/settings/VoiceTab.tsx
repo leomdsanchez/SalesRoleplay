@@ -27,19 +27,23 @@ interface VoiceTabProps {
 
 export function VoiceTab({ settings, onUpdate }: VoiceTabProps) {
   const supportsVerboseJson = settings.sttModel === "whisper-1";
+  const supportsDiarizedFormat = settings.sttModel === "gpt-4o-transcribe-diarize";
   const canUseTimestamps = supportsVerboseJson && settings.sttResponseFormat === "verbose_json";
 
   const handleModelChange = (value: string) => {
     const model = value as STTModel;
     const updates: Partial<VoiceAgentSettings> = { sttModel: model };
 
-    if (model !== "whisper-1") {
-      if (settings.sttResponseFormat === "verbose_json") {
-        updates.sttResponseFormat = "json";
-      }
-      if (settings.sttTimestampGranularity !== "none") {
-        updates.sttTimestampGranularity = "none";
-      }
+    if (model !== "whisper-1" && settings.sttResponseFormat === "verbose_json") {
+      updates.sttResponseFormat = "json";
+    }
+
+    if (model !== "gpt-4o-transcribe-diarize" && settings.sttResponseFormat === "diarized_json") {
+      updates.sttResponseFormat = "json";
+    }
+
+    if (model !== "whisper-1" && settings.sttTimestampGranularity !== "none") {
+      updates.sttTimestampGranularity = "none";
     }
 
     onUpdate(updates);
@@ -112,7 +116,10 @@ export function VoiceTab({ settings, onUpdate }: VoiceTabProps) {
                   <SelectItem
                     key={format}
                     value={format}
-                    disabled={!supportsVerboseJson && format === "verbose_json"}
+                    disabled={
+                      (!supportsVerboseJson && format === "verbose_json") ||
+                      (!supportsDiarizedFormat && format === "diarized_json")
+                    }
                   >
                     {format}
                   </SelectItem>
@@ -123,6 +130,8 @@ export function VoiceTab({ settings, onUpdate }: VoiceTabProps) {
               Choose <span className="font-medium">json</span> for structured transcripts.
               {" "}
               <span className="font-medium">verbose_json</span> unlocks word-level data and requires Whisper.
+              {" "}
+              <span className="font-medium">diarized_json</span> inclui falas com speaker e depende do modelo gpt-4o-transcribe-diarize.
             </p>
           </div>
 

@@ -6,7 +6,7 @@ import { GeneralTab } from "@/components/settings/GeneralTab";
 import { VoiceTab } from "@/components/settings/VoiceTab";
 import { PromptTab } from "@/components/settings/PromptTab";
 import { AdvancedTab } from "@/components/settings/AdvancedTab";
-import { ConfidenceTab } from "@/components/settings/ConfidenceTab";
+import { CoachTab } from "@/components/settings/CoachTab";
 import { useToast } from "@/hooks/use-toast";
 
 export function VoiceSettings() {
@@ -96,7 +96,7 @@ export function VoiceSettings() {
             <TabsTrigger value="voice">Voice</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            <TabsTrigger value="confidence">Confiança</TabsTrigger>
+            <TabsTrigger value="coach">Coach</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 mt-6">
@@ -115,8 +115,8 @@ export function VoiceSettings() {
             <AdvancedTab settings={settings} onUpdate={updateSettings} />
           </TabsContent>
 
-          <TabsContent value="confidence" className="space-y-4 mt-6">
-            <ConfidenceTab settings={settings} onUpdate={updateSettings} />
+          <TabsContent value="coach" className="space-y-4 mt-6">
+            <CoachTab settings={settings} onUpdate={updateSettings} />
           </TabsContent>
         </Tabs>
       </div>

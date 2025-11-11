@@ -24,8 +24,15 @@ export class VoiceSession {
   private userId?: string;
   private settings?: VoiceAgentSettings;
   private currentConfidence = 0;
-  private confidenceReason = "sessão iniciada";
+  private coachNotes = "sessão iniciada";
   private confidenceLocked = false;
+  private coachSpeechMetrics: {
+    fillerRate: number | null;
+    speechNotes: string | null;
+  } = {
+    fillerRate: null,
+    speechNotes: null,
+  };
 
   constructor(ws: WebSocket) {
     this.ws = ws;
@@ -79,8 +86,12 @@ export class VoiceSession {
   private async handleStartSession(message: StartSessionMessage) {
     this.userId = message.data.userId;
     this.currentConfidence = 0;
-    this.confidenceReason = "sessão iniciada";
+    this.coachNotes = "sessão iniciada";
     this.confidenceLocked = false;
+    this.coachSpeechMetrics = {
+      fillerRate: null,
+      speechNotes: null,
+    };
     
     // Load user settings
     if (this.userId) {
@@ -170,7 +181,7 @@ export class VoiceSession {
 
       const confidencePayload = {
         trust_level: Number(this.currentConfidence.toFixed(2)),
-        reason: this.confidenceReason,
+        notes: this.coachNotes,
       };
       const confidenceLine = `Confiança atual (JSON): ${JSON.stringify(confidencePayload)}. Ajuste seu comportamento com base nesse nível.`;
       systemContent = `${systemContent}\n\n${confidenceLine}`.trim();
@@ -351,7 +362,7 @@ export class VoiceSession {
   }
 
   private async updateConfidence(userText: string) {
-    if (!this.settings?.confidenceModel) {
+    if (!this.settings?.coachModel) {
       return;
     }
 
@@ -362,29 +373,40 @@ export class VoiceSession {
       ];
 
       const result = await evaluateConfidence({
-        model: this.settings.confidenceModel,
-        prompt: this.settings.confidencePrompt || "",
+        model: this.settings.coachModel,
+        prompt: this.settings.coachPrompt || "",
         messages: coachMessages,
       });
 
       this.currentConfidence = result.confidence;
-      this.confidenceReason = result.reason || this.confidenceReason;
+      if (typeof result.speechNotes === "string") {
+        this.coachNotes = result.speechNotes;
+      }
+      this.coachSpeechMetrics = {
+        fillerRate: result.fillerRate ?? null,
+        speechNotes: result.speechNotes ?? null,
+      };
       if (this.currentConfidence <= -1) {
         this.confidenceLocked = true;
-        this.sendConfidenceUpdate(result.reason);
+        this.sendConfidenceUpdate(result.speechNotes ?? undefined);
         this.sendError("Confiança caiu para o mínimo. Reinicie a sessão para tentar novamente.");
       } else {
-        this.sendConfidenceUpdate(result.reason);
+        this.sendConfidenceUpdate(result.speechNotes ?? undefined);
       }
     } catch (error) {
-      logger.error("Confidence coach error", error);
+      logger.error("Coach error", error);
     }
   }
 
   private sendConfidenceUpdate(reason?: string) {
     this.send({
       type: VoiceMessageType.CONFIDENCE_UPDATE,
-      data: { value: this.currentConfidence, reason: reason ?? this.confidenceReason },
+      data: {
+        confidence: this.currentConfidence,
+        speechNotes: reason ?? this.coachNotes,
+        fillerRate: this.coachSpeechMetrics.fillerRate,
+        source: "coach",
+      },
     });
   }
 }

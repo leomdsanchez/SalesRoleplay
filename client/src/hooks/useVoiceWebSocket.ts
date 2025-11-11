@@ -24,7 +24,7 @@ export interface VoiceWebSocketCallbacks {
   onSessionStarted?: () => void;
   onError?: (error: string) => void;
   onRagContext?: (references: RagReference[]) => void;
-  onConfidence?: (value: number, reason?: string) => void;
+  onCoachUpdate?: (data: ConfidenceUpdateMessage["data"]) => void;
 }
 
 export interface UseVoiceWebSocketReturn {
@@ -91,9 +91,7 @@ export function useVoiceWebSocket(
 
         case VoiceMessageType.CONFIDENCE_UPDATE:
           const confMsg = message as ConfidenceUpdateMessage;
-          if (typeof confMsg.data.value === "number") {
-            callbacks.onConfidence?.(confMsg.data.value, confMsg.data.reason);
-          }
+          callbacks.onCoachUpdate?.(confMsg.data);
           break;
 
         case VoiceMessageType.ERROR:

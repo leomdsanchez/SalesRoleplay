@@ -30,8 +30,9 @@ export default function VoiceAgentV2() {
     isPressed,
     error,
     confidence,
-    confidenceReason,
+    coachNotes,
     speechAnalytics,
+    coachMetrics,
     settings: agentSettings,
     startSession,
     stopSession,
@@ -117,10 +118,11 @@ export default function VoiceAgentV2() {
         <VoiceInsightsPanel
           open={insightsOpen}
           onToggle={() => setInsightsOpen((prev) => !prev)}
-          confidenceVisible={Boolean(agentSettings?.confidenceVisible)}
+          coachVisible={Boolean(agentSettings?.coachVisible)}
           confidenceValue={confidence}
-          confidenceReason={confidenceReason}
+          coachNotes={coachNotes}
           speechAnalytics={speechAnalytics}
+          coachMetrics={coachMetrics}
         />
       </div>
     </div>

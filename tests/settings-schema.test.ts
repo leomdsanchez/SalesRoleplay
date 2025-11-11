@@ -33,6 +33,7 @@ describe("Settings Schema", () => {
 
     it("should contain updated voice models", () => {
       expect(STTModels).toContain("gpt-4o-transcribe");
+      expect(STTModels).toContain("gpt-4o-transcribe-diarize");
       expect(STTModels).toContain("whisper-1");
 
       expect(TTSModels).toContain("gpt-4o-mini-tts");
@@ -78,9 +79,9 @@ describe("Settings Schema", () => {
         autoPlayAudio: true,
         ragReferenceLimit: 3,
         ragPromptIntro: "Use referências reais:",
-        confidenceModel: "gpt-4o-mini" as const,
-        confidencePrompt: "Avalie",
-        confidenceVisible: true,
+        coachModel: "gpt-4o-mini" as const,
+        coachPrompt: "Avalie",
+        coachVisible: true,
       };
 
       const result = voiceSettingsSchema.safeParse(validSettings);
@@ -153,8 +154,8 @@ describe("Settings Schema", () => {
       expect(defaultSettings.ttsLanguage).toBe("pt");
       expect(defaultSettings.ragReferenceLimit).toBeGreaterThanOrEqual(0);
       expect(defaultSettings.ragPromptIntro.length).toBeGreaterThan(0);
-      expect(defaultSettings.confidencePrompt.length).toBeGreaterThan(0);
-      expect(defaultSettings.confidenceModel).toBeTruthy();
+      expect(defaultSettings.coachPrompt.length).toBeGreaterThan(0);
+      expect(defaultSettings.coachModel).toBeTruthy();
     });
 
     it("should validate default settings", () => {

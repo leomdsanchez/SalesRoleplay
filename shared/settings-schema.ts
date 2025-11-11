@@ -18,6 +18,7 @@ export const LLMModels = [
 
 export const STTModels = [
   "gpt-4o-transcribe", // Next-gen transcription model - higher accuracy
+  "gpt-4o-transcribe-diarize", // Adds speaker diarization support
   "whisper-1" // Legacy Whisper model for compatibility
 ] as const;
 
@@ -25,6 +26,7 @@ export const STTResponseFormats = [
   "json",          // Structured output with segments, best for analytics
   "text",          // Plain text only
   "verbose_json",  // Whisper-only: includes word-level timestamps
+  "diarized_json", // GPT-4o diarization output with speakers
 ] as const;
 
 export const STTTimestampGranularities = [
@@ -86,9 +88,9 @@ export interface VoiceAgentSettings {
   autoPlayAudio: boolean;
   ragReferenceLimit: number;
   ragPromptIntro: string;
-  confidenceModel: LLMModel;
-  confidencePrompt: string;
-  confidenceVisible: boolean;
+  coachModel: LLMModel;
+  coachPrompt: string;
+  coachVisible: boolean;
 }
 
 export const defaultSettings: VoiceAgentSettings = {
@@ -117,14 +119,14 @@ export const defaultSettings: VoiceAgentSettings = {
   autoPlayAudio: true,
   ragReferenceLimit: 3,
   ragPromptIntro: "Você é a cliente. Baseie-se nas respostas reais abaixo e não repita falas do vendedor:",
-  confidenceModel: "gpt-4.1-mini",
-  confidencePrompt: `Você avalia a confiança de uma cliente chamada Ana em relação a um vendedor em uma ligação comercial. Baseie-se somente na conversa e devolva um JSON com:
+  coachModel: "gpt-4.1-mini",
+  coachPrompt: `Você avalia a confiança de uma cliente chamada Ana em relação a um vendedor em uma ligação comercial. Baseie-se somente na conversa e devolva um JSON com:
 {
   "confidence": 0.0-1.0,
   "reason": "texto curto explicando o porquê"
 }
 `,
-  confidenceVisible: true,
+  coachVisible: true,
 };
 
 // Helper to detect if model is GPT-5 series
@@ -173,7 +175,7 @@ export const voiceSettingsSchema = z.object({
   autoPlayAudio: z.boolean(),
   ragReferenceLimit: z.number().int().min(0).max(10),
   ragPromptIntro: z.string().min(1).max(2000),
-  confidenceModel: z.enum(LLMModels),
-  confidencePrompt: z.string().min(1),
-  confidenceVisible: z.boolean(),
+  coachModel: z.enum(LLMModels),
+  coachPrompt: z.string().min(1),
+  coachVisible: z.boolean(),
 });

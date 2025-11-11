@@ -12,7 +12,7 @@ export const settingsStorage = {
       .all();
 
     if (rows.length > 0) {
-      const stored = JSON.parse(rows[0].settings);
+      const stored = migrateLegacySettings(JSON.parse(rows[0].settings));
       return {
         ...defaultSettings,
         ...stored,
@@ -40,3 +40,21 @@ export const settingsStorage = {
       .run();
   },
 };
+
+function migrateLegacySettings(settings: any) {
+  if (!settings || typeof settings !== "object") {
+    return settings;
+  }
+
+  if (settings.confidenceModel && !settings.coachModel) {
+    settings.coachModel = settings.confidenceModel;
+  }
+  if (settings.confidencePrompt && !settings.coachPrompt) {
+    settings.coachPrompt = settings.confidencePrompt;
+  }
+  if (typeof settings.confidenceVisible === "boolean" && typeof settings.coachVisible !== "boolean") {
+    settings.coachVisible = settings.confidenceVisible;
+  }
+
+  return settings;
+}

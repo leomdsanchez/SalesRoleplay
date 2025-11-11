@@ -4,7 +4,8 @@ import { logger } from "@shared/logger";
 
 interface ConfidenceResult {
   confidence: number;
-  reason?: string;
+  fillerRate?: number | null;
+  speechNotes?: string | null;
 }
 
 interface ConfidenceOptions {
@@ -40,30 +41,36 @@ export async function evaluateConfidence({
 
   try {
     const parsed = JSON.parse(content);
-    let value = Number(
-      parsed.trust_level ??
-        parsed.confidence ??
-        parsed.score ??
-        parsed.value ??
-        0
-    );
+    let value = Number(parsed.confidence ?? parsed.trust_level ?? parsed.score ?? parsed.value ?? 0);
     if (Number.isNaN(value)) value = 0;
     value = Math.min(1, Math.max(-1, value));
-    const reason =
-      typeof parsed.reason === "string"
-        ? parsed.reason
-        : typeof parsed.explanation === "string"
-          ? parsed.explanation
+    const fillerRate = normalizeFillerRate(
+      firstNumber([
+        parsed.filler_rate,
+        parsed.fillerRate,
+        parsed.fillers_rate,
+        parsed.filler_percentage,
+        parsed.fillerPercent,
+      ])
+    );
+
+    const speechNotes =
+      typeof parsed.speech_notes === "string"
+        ? parsed.speech_notes
+        : typeof parsed.reason === "string"
+          ? parsed.reason
           : undefined;
 
     logger.info("[ConfidenceCoach] Resultado parseado", {
       value,
-      reason,
+      fillerRate,
+      speechNotes,
     });
 
     return {
       confidence: value,
-      reason,
+      fillerRate,
+      speechNotes: speechNotes ?? null,
     };
   } catch (error) {
     logger.error(
@@ -73,4 +80,23 @@ export async function evaluateConfidence({
     );
     throw new Error(`Falha ao parsear confiança: ${error}`);
   }
+}
+
+function firstNumber(values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const num = Number(value);
+    if (!Number.isNaN(num)) {
+      return num;
+    }
+  }
+  return undefined;
+}
+
+function normalizeFillerRate(value?: number | null): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+  const normalized = value > 1 ? value / 100 : value;
+  return Math.min(1, Math.max(0, normalized));
 }

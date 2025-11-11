@@ -41,14 +41,33 @@ export interface StartSessionMessage extends VoiceMessage {
 }
 
 // Server → Client messages
-export type TranscriptResponseFormat = "text" | "json" | "verbose_json";
+export type TranscriptResponseFormat = "text" | "json" | "verbose_json" | "diarized_json";
+
+export interface TranscriptWordTiming {
+  word?: string;
+  start?: number;
+  end?: number;
+  confidence?: number;
+  [key: string]: any;
+}
+
+export interface TranscriptSegment {
+  id?: string;
+  type?: string;
+  start?: number;
+  end?: number;
+  text?: string;
+  speaker?: string;
+  [key: string]: any;
+}
 
 export interface TranscriptMetadata {
   format: TranscriptResponseFormat;
   durationSeconds?: number;
   language?: string;
-  segments?: Array<Record<string, any>>;
-  words?: Array<Record<string, any>>;
+  segments?: TranscriptSegment[];
+  words?: TranscriptWordTiming[];
+  diarizedSegments?: TranscriptSegment[];
   raw?: Record<string, any>;
 }
 
@@ -103,12 +122,16 @@ export interface RagContextMessage extends VoiceMessage {
   };
 }
 
+export interface CoachUpdateData {
+  confidence: number;
+  speechNotes?: string | null;
+  fillerRate?: number | null;
+  source?: "coach" | "stt";
+}
+
 export interface ConfidenceUpdateMessage extends VoiceMessage {
   type: VoiceMessageType.CONFIDENCE_UPDATE;
-  data: {
-    value: number;
-    reason?: string;
-  };
+  data: CoachUpdateData;
 }
 
 export interface ErrorMessage extends VoiceMessage {

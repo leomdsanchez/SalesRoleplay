@@ -70,10 +70,21 @@ export async function transcribeAudio(
       requested: STTResponseFormat,
       model: STTModel
     ): STTResponseFormat => {
-      if (model === "whisper-1") return requested;
-      if (requested === "verbose_json") {
+      const supportsVerbose = model === "whisper-1";
+      const supportsDiarized = model === "gpt-4o-transcribe-diarize";
+      if (requested === "verbose_json" && !supportsVerbose) {
         console.warn(`[STT] Model ${model} does not support verbose_json. Falling back to json.`);
         return "json";
+      }
+      if (requested === "diarized_json" && !supportsDiarized) {
+        console.warn(`[STT] Model ${model} does not support diarized_json. Falling back to json.`);
+        return "json";
+      }
+      if (requested === "verbose_json" && supportsVerbose) {
+        return requested;
+      }
+      if (requested === "diarized_json" && supportsDiarized) {
+        return requested;
       }
       return requested;
     };
@@ -137,12 +148,17 @@ export async function transcribeAudio(
       metadata.raw = structured;
       if (typeof structured?.duration === "number") {
         metadata.durationSeconds = structured.duration;
+      } else if (typeof structured?.usage?.seconds === "number") {
+        metadata.durationSeconds = structured.usage.seconds;
       }
       if (typeof structured?.language === "string") {
         metadata.language = structured.language;
       }
       if (Array.isArray(structured?.segments)) {
         metadata.segments = structured.segments;
+        if (normalizedFormat === "diarized_json" || model === "gpt-4o-transcribe-diarize") {
+          metadata.diarizedSegments = structured.segments;
+        }
       }
       if (Array.isArray(structured?.words)) {
         metadata.words = structured.words;
