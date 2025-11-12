@@ -15,10 +15,15 @@ import {
 import { ragSearch } from "../rag/service";
 import { evaluateConfidence } from "./confidence-coach";
 
+type QueuedAudioChunk = {
+  buffer: Buffer;
+  format: AudioChunkMessage["data"]["format"];
+};
+
 export class VoiceSession {
   private ws: WebSocket;
   private conversationHistory: ChatCompletionMessageParam[] = [];
-  private audioBuffer: Buffer[] = [];
+  private audioBuffer: QueuedAudioChunk[] = [];
   private isProcessing = false;
   private shouldCancelStreaming = false;
   private userId?: string;
@@ -115,7 +120,8 @@ export class VoiceSession {
     if (this.isProcessing) {
       // Buffer audio if already processing
       const audioBuffer = Buffer.from(message.data.audio, "base64");
-      this.audioBuffer.push(audioBuffer);
+      const format = message.data.format ?? "webm";
+      this.audioBuffer.push({ buffer: audioBuffer, format });
       return;
     }
 
@@ -125,8 +131,9 @@ export class VoiceSession {
     try {
       // Step 1: Speech-to-Text
       const audioBuffer = Buffer.from(message.data.audio, "base64");
+      const format = message.data.format ?? "webm";
       const { text: userText, metadata: transcriptMetadata } = await transcribeAudio(audioBuffer, {
-        format: message.data.format,
+        format,
         model: this.settings?.sttModel,
         language: this.settings?.sttLanguage,
         responseFormat: this.settings?.sttResponseFormat,
@@ -318,8 +325,8 @@ export class VoiceSession {
           await this.handleAudioChunk({
             type: VoiceMessageType.AUDIO_CHUNK,
             data: {
-              audio: nextAudio.toString("base64"),
-              format: "webm",
+              audio: nextAudio.buffer.toString("base64"),
+              format: nextAudio.format,
             },
           });
         }

@@ -111,7 +111,10 @@ export function useVoiceWebSocket(
   );
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (
+      wsRef.current &&
+      (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
       console.log("[VoiceWS] Already connected");
       return;
     }
@@ -211,11 +214,12 @@ export function useVoiceWebSocket(
   const sendAudio = useCallback(async (audioBlob: Blob): Promise<void> => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn("[VoiceWS] Cannot send audio, not connected");
-      return;
+      throw new Error("WebSocket not connected");
     }
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      const format = audioBlob.type?.includes("mp4") ? "mp4" : "webm";
 
       reader.onloadend = () => {
         try {
@@ -225,7 +229,7 @@ export function useVoiceWebSocket(
           wsRef.current?.send(
             JSON.stringify({
               type: VoiceMessageType.AUDIO_CHUNK,
-              data: { audio: base64, format: "webm" },
+              data: { audio: base64, format },
             })
           );
 

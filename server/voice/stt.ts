@@ -16,7 +16,7 @@ export interface STTResult {
 }
 
 export interface TranscribeAudioOptions {
-  format?: "webm" | "mp3" | "wav";
+  format?: "webm" | "mp3" | "wav" | "mp4";
   model?: STTModel;
   language?: string;
   responseFormat?: STTResponseFormat;

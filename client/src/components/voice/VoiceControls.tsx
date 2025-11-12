@@ -13,6 +13,8 @@ interface VoiceControlsProps {
   onStartSession: () => void;
   onStopSession: () => void;
   inputLevel: number;
+  onPressStart: () => void;
+  onPressEnd: () => void;
 }
 
 /**
@@ -29,7 +31,16 @@ export function VoiceControls({
   onStartSession,
   onStopSession,
   inputLevel,
+  onPressStart,
+  onPressEnd,
 }: VoiceControlsProps) {
+  const canPushToTalk = sessionActive && recorderReady && isConnected;
+
+  const handlePointerEnd = () => {
+    if (!canPushToTalk || !isPressed) return;
+    onPressEnd();
+  };
+
   return (
     <div className="flex-shrink-0 border-t bg-white/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-4 max-w-3xl">
@@ -65,9 +76,20 @@ export function VoiceControls({
 
             <div
               className={cn(
-                "pointer-events-none absolute w-full max-w-sm h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden transition-all duration-300",
-                sessionActive ? "opacity-100 scale-100" : "opacity-50 scale-95"
+                "absolute w-full max-w-sm h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden transition-all duration-300",
+                sessionActive ? "opacity-100 scale-100" : "opacity-50 scale-95",
+                canPushToTalk ? "cursor-pointer" : "cursor-not-allowed opacity-60"
               )}
+              role="button"
+              aria-label="Segure para falar"
+              onPointerDown={(event) => {
+                if (!canPushToTalk || isPressed) return;
+                event.preventDefault();
+                onPressStart();
+              }}
+              onPointerUp={handlePointerEnd}
+              onPointerLeave={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
             >
               <WaveAnimation
                 isActive={sessionActive && recorderReady && isPressed && isRecording}

@@ -22,6 +22,12 @@ export function usePushToTalkKeyboard({
   useEffect(() => {
     if (!enabled) return;
 
+    const resetPressState = () => {
+      if (!isPressed) return;
+      setIsPressed(false);
+      onPressEnd();
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if already pressed or is a repeat event
       if (e.code === key && !e.repeat && !isPressed) {
@@ -41,12 +47,22 @@ export function usePushToTalkKeyboard({
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        resetPressState();
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", resetPressState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", resetPressState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [enabled, isPressed, key, onPressStart, onPressEnd]);
 

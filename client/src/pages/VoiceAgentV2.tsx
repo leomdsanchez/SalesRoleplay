@@ -38,6 +38,8 @@ export default function VoiceAgentV2() {
     stopSession,
     sessionActive,
     inputLevel,
+    startPushToTalk,
+    stopPushToTalk,
   } = useVoiceAgent({
     userId: user?.id,
   });
@@ -115,6 +117,8 @@ export default function VoiceAgentV2() {
               onStartSession={startSession}
               onStopSession={stopSession}
               inputLevel={inputLevel}
+              onPressStart={startPushToTalk}
+              onPressEnd={stopPushToTalk}
             />
           </div>
         </div>

@@ -115,11 +115,20 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [settings, setSettings] = useState<VoiceAgentSettings | null>(null);
   const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalytics | null>(null);
   const [coachMetrics, setCoachMetrics] = useState<CoachMetrics | null>(null);
+  const [isPressActive, setIsPressActive] = useState(false);
   const streamingTextRef = useRef(streamingText);
+  const pendingAudioRef = useRef<Array<{ blob: Blob; attempts: number }>>([]);
+  const processingQueueRef = useRef(false);
 
   useEffect(() => {
     streamingTextRef.current = streamingText;
   }, [streamingText]);
+
+  useEffect(() => {
+    if (!sessionActive) {
+      pendingAudioRef.current = [];
+    }
+  }, [sessionActive]);
   
   // Audio player
   const { isPlaying, enqueueAudio, clearQueue } = useAudioPlayer();
@@ -369,21 +378,74 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     userId,
     wsCallbacks
   );
+  const isConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  const waitForConnection = useCallback(async () => {
+    if (isConnectedRef.current) {
+      return;
+    }
+
+    debugLog("Waiting for WebSocket connection...");
+    connect();
+
+    const timeoutMs = 5000;
+    const intervalMs = 200;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+      if (isConnectedRef.current) {
+        debugLog("WebSocket connection restored");
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error("Voice WebSocket not ready");
+  }, [connect]);
 
   // Audio ready handler
-  const handleAudioReady = useCallback(
-    async (blob: Blob) => {
-      debugLog("Audio ready", { size: blob.size });
-      
-      if (!isConnected) {
-        debugLog("Not connected, attempting to connect...");
-        connect();
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+  const processAudioQueue = useCallback(async () => {
+    if (processingQueueRef.current) {
+      return;
+    }
 
-      await sendAudio(blob);
+    processingQueueRef.current = true;
+
+    try {
+      while (pendingAudioRef.current.length > 0) {
+        const item = pendingAudioRef.current[0];
+
+        try {
+          await waitForConnection();
+          await sendAudio(item.blob);
+          pendingAudioRef.current.shift();
+        } catch (err) {
+          item.attempts += 1;
+          console.error("[VoiceAgent] Failed to send audio chunk", err, { attempts: item.attempts });
+
+          if (item.attempts >= 3) {
+            console.error("[VoiceAgent] Dropping audio chunk after retries");
+            pendingAudioRef.current.shift();
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+          }
+        }
+      }
+    } finally {
+      processingQueueRef.current = false;
+    }
+  }, [waitForConnection, sendAudio]);
+
+  const handleAudioReady = useCallback(
+    (blob: Blob) => {
+      debugLog("Audio ready", { size: blob.size, type: blob.type });
+      pendingAudioRef.current.push({ blob, attempts: 0 });
+      void processAudioQueue();
     },
-    [isConnected, connect, sendAudio]
+    [processAudioQueue]
   );
 
   // Push-to-talk recorder
@@ -407,11 +469,33 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     },
   });
 
+  const handlePressStart = useCallback(() => {
+    if (!sessionActive || !recorderReady || isPressActive) {
+      return;
+    }
+    setIsPressActive(true);
+    startRecording();
+  }, [sessionActive, recorderReady, isPressActive, startRecording]);
+
+  const handlePressEnd = useCallback(() => {
+    if (!sessionActive || !recorderReady || !isPressActive) {
+      return;
+    }
+    setIsPressActive(false);
+    stopRecording();
+  }, [sessionActive, recorderReady, isPressActive, stopRecording]);
+
+  useEffect(() => {
+    if (!sessionActive || !recorderReady) {
+      setIsPressActive(false);
+    }
+  }, [sessionActive, recorderReady]);
+
   // Keyboard handler
-  const { isPressed } = usePushToTalkKeyboard({
+  usePushToTalkKeyboard({
     enabled: sessionActive && recorderReady,
-    onPressStart: startRecording,
-    onPressEnd: stopRecording,
+    onPressStart: handlePressStart,
+    onPressEnd: handlePressEnd,
   });
 
   // Control functions
@@ -447,7 +531,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     isConnected,
     recorderReady,
     isRecording,
-    isPressed,
+    isPressed: isPressActive,
     confidence,
     coachNotes,
     speechAnalytics,
@@ -463,5 +547,7 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
     startSession,
     stopSession,
     clearMessages,
+    startPushToTalk: handlePressStart,
+    stopPushToTalk: handlePressEnd,
   };
 }

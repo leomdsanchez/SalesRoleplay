@@ -29,6 +29,8 @@ export function usePushToTalkRecorder({
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const levelRafRef = useRef<number | null>(null);
   const levelRef = useRef(0);
+  const chunksRef = useRef<Blob[]>([]);
+  const recorderMimeTypeRef = useRef("audio/webm");
 
   const stopLevelMonitor = useCallback(() => {
     if (levelRafRef.current) {
@@ -54,6 +56,9 @@ export function usePushToTalkRecorder({
       }
 
       const audioContext = new AudioContextClass();
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {});
+      }
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
@@ -81,7 +86,8 @@ export function usePushToTalkRecorder({
         const scaledLevel = Math.min(1, rms * 4); // Boost sensitivity
         const smoothLevel = levelRef.current * 0.8 + scaledLevel * 0.2;
         levelRef.current = smoothLevel;
-        setInputLevel(smoothLevel);
+        const visualBaseline = 0.02;
+        setInputLevel(Math.max(visualBaseline, smoothLevel));
 
         levelRafRef.current = requestAnimationFrame(updateLevel);
       };
@@ -92,6 +98,28 @@ export function usePushToTalkRecorder({
     }
   }, []);
 
+  const pickSupportedMimeType = useCallback(() => {
+    if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
+      return null;
+    }
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4;codecs=mp4a",
+      "audio/mp4",
+    ];
+    for (const type of candidates) {
+      try {
+        if (MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      } catch {
+        // Ignore browsers that throw on unsupported queries
+      }
+    }
+    return null;
+  }, []);
+
   // Initialize MediaRecorder
   const initialize = useCallback(async () => {
     try {
@@ -100,17 +128,40 @@ export function usePushToTalkRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const mimeType = "audio/webm;codecs=opus";
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const supportedMimeType = pickSupportedMimeType();
+      const recorderOptions = supportedMimeType ? { mimeType: supportedMimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
+      const resolvedMimeType = mediaRecorder.mimeType || supportedMimeType || "audio/webm";
+      recorderMimeTypeRef.current = resolvedMimeType;
+      chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log(`[PushToTalk] Data available: ${event.data.size} bytes, shouldSend: ${shouldSendRef.current}`);
-        
-        if (event.data.size > 0 && shouldSendRef.current) {
-          console.log("[PushToTalk] Sending audio blob");
-          onAudioReady(event.data);
-          shouldSendRef.current = false;
+        console.log(
+          `[PushToTalk] Data available: ${event.data.size} bytes (shouldSend=${shouldSendRef.current})`
+        );
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
         }
+      };
+
+      mediaRecorder.onstop = () => {
+        const shouldSend = shouldSendRef.current;
+        const chunks = chunksRef.current;
+        chunksRef.current = [];
+        shouldSendRef.current = false;
+
+        if (!shouldSend || chunks.length === 0) {
+          console.log("[PushToTalk] Recording stopped without payload");
+          return;
+        }
+
+        console.log("[PushToTalk] Finalizing blob", {
+          chunks: chunks.length,
+          mimeType: recorderMimeTypeRef.current,
+        });
+
+        const blob = new Blob(chunks, { type: recorderMimeTypeRef.current });
+        onAudioReady(blob);
       };
 
       mediaRecorder.onerror = (event: any) => {
@@ -129,7 +180,7 @@ export function usePushToTalkRecorder({
       setError(err.message);
       setIsReady(false);
     }
-  }, [onAudioReady, startLevelMonitor]);
+  }, [onAudioReady, startLevelMonitor, pickSupportedMimeType]);
 
   // Cleanup
   const cleanup = useCallback(() => {
@@ -144,6 +195,8 @@ export function usePushToTalkRecorder({
       streamRef.current = null;
     }
     stopLevelMonitor();
+    chunksRef.current = [];
+    shouldSendRef.current = false;
 
     mediaRecorderRef.current = null;
     setIsReady(false);
@@ -171,6 +224,11 @@ export function usePushToTalkRecorder({
       // Call callback to clear audio queue
       onRecordingStart?.();
       
+      chunksRef.current = [];
+      shouldSendRef.current = false;
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume().catch(() => {});
+      }
       mediaRecorderRef.current.start();
       setIsActive(true);
       setTimeout(() => { isProcessingRef.current = false; }, 100);
