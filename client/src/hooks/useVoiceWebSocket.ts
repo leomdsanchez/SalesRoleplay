@@ -27,12 +27,19 @@ export interface VoiceWebSocketCallbacks {
   onCoachUpdate?: (data: ConfidenceUpdateMessage["data"]) => void;
 }
 
+export interface SendAudioOptions {
+  turnId?: string;
+  chunkIndex?: number;
+  isLast?: boolean;
+  chunkCount?: number;
+}
+
 export interface UseVoiceWebSocketReturn {
   isConnected: boolean;
   error: string | null;
   connect: () => void;
   disconnect: () => void;
-  sendAudio: (audioBlob: Blob) => Promise<void>;
+  sendAudio: (audioBlob: Blob, options?: SendAudioOptions) => Promise<void>;
   cancelStreaming: () => void;
 }
 
@@ -211,7 +218,7 @@ export function useVoiceWebSocket(
     );
   }, []);
 
-  const sendAudio = useCallback(async (audioBlob: Blob): Promise<void> => {
+  const sendAudio = useCallback(async (audioBlob: Blob, options?: SendAudioOptions): Promise<void> => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn("[VoiceWS] Cannot send audio, not connected");
       throw new Error("WebSocket not connected");
@@ -229,7 +236,14 @@ export function useVoiceWebSocket(
           wsRef.current?.send(
             JSON.stringify({
               type: VoiceMessageType.AUDIO_CHUNK,
-              data: { audio: base64, format },
+              data: {
+                audio: base64,
+                format,
+                turnId: options?.turnId,
+                chunkIndex: options?.chunkIndex,
+                isLast: options?.isLast,
+                chunkCount: options?.chunkCount,
+              },
             })
           );
 

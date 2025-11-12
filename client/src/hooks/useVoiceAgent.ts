@@ -81,6 +81,13 @@ const countFillerWords = (text: string): number => {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const AUDIO_CHUNK_SIZE = 512 * 1024; // 512 KB per WebSocket frame
+const generateTurnId = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+};
 
 const DEBUG_VOICE_AGENT = false;
 const debugLog = (...args: any[]) => {
@@ -117,7 +124,16 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const [coachMetrics, setCoachMetrics] = useState<CoachMetrics | null>(null);
   const [isPressActive, setIsPressActive] = useState(false);
   const streamingTextRef = useRef(streamingText);
-  const pendingAudioRef = useRef<Array<{ blob: Blob; attempts: number }>>([]);
+  const pendingAudioRef = useRef<
+    Array<{
+      blob: Blob;
+      attempts: number;
+      turnId?: string;
+      chunkIndex?: number;
+      isLast?: boolean;
+      chunkCount?: number;
+    }>
+  >([]);
   const processingQueueRef = useRef(false);
 
   useEffect(() => {
@@ -420,7 +436,12 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
 
         try {
           await waitForConnection();
-          await sendAudio(item.blob);
+          await sendAudio(item.blob, {
+            turnId: item.turnId,
+            chunkIndex: item.chunkIndex,
+            isLast: item.isLast,
+            chunkCount: item.chunkCount,
+          });
           pendingAudioRef.current.shift();
         } catch (err) {
           item.attempts += 1;
@@ -442,7 +463,30 @@ export function useVoiceAgent({ userId }: UseVoiceAgentOptions) {
   const handleAudioReady = useCallback(
     (blob: Blob) => {
       debugLog("Audio ready", { size: blob.size, type: blob.type });
-      pendingAudioRef.current.push({ blob, attempts: 0 });
+      const chunkSize = AUDIO_CHUNK_SIZE;
+      const turnId = generateTurnId();
+
+      if (blob.size === 0) {
+        debugLog("Ignoring empty audio blob");
+        return;
+      }
+
+      const chunkCount = Math.max(1, Math.ceil(blob.size / chunkSize));
+      for (let index = 0; index < chunkCount; index++) {
+        const start = index * chunkSize;
+        const end = Math.min(blob.size, start + chunkSize);
+        const chunk = blob.slice(start, end);
+
+        pendingAudioRef.current.push({
+          blob: chunk,
+          attempts: 0,
+          turnId,
+          chunkIndex: index,
+          isLast: index === chunkCount - 1,
+          chunkCount,
+        });
+      }
+
       void processAudioQueue();
     },
     [processAudioQueue]

@@ -29,6 +29,10 @@ export interface AudioChunkMessage extends VoiceMessage {
   data: {
     audio: string; // base64 encoded audio chunk
     format: "webm" | "mp3" | "wav" | "mp4";
+    turnId?: string;
+    chunkIndex?: number;
+    isLast?: boolean;
+    chunkCount?: number;
   };
 }
 
