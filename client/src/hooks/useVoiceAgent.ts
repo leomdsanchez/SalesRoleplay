@@ -145,6 +145,7 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
     error: recorderError,
     startRecording,
     stopRecording,
+    stream: mediaStream,
   } = usePushToTalkRecorder({
     onAudioReady: handleAudioReady,
     enabled: sessionActive,
@@ -209,6 +210,7 @@ export function useVoiceAgent({ userId, sttLanguage = "pt" }: UseVoiceAgentOptio
     recorderReady,
     isRecording,
     isPressed,
+    mediaStream,
 
     // Errors
     error: wsError || recorderError,

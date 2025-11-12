@@ -6,6 +6,7 @@ interface UseVoiceActivityOptions {
   onSpeechEnd?: () => void;
   threshold?: number;
   silenceDuration?: number;
+  stream?: MediaStream | null;
 }
 
 /**
@@ -18,13 +19,21 @@ export function useVoiceActivity({
   onSpeechEnd,
   threshold = 0.01, // Volume threshold (0-1)
   silenceDuration = 1500, // ms of silence before considering speech ended
+  stream,
 }: UseVoiceActivityOptions) {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [volume, setVolume] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const ownsStreamRef = useRef(false);
+  const isSpeakingRef = useRef(false);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   useEffect(() => {
     if (!enabled) {
@@ -36,19 +45,29 @@ export function useVoiceActivity({
 
     const setupVAD = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let activeStream = stream ?? null;
+
+        if (!activeStream) {
+          activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          ownsStreamRef.current = true;
+        } else {
+          ownsStreamRef.current = false;
+        }
+
         if (!mounted) {
-          stream.getTracks().forEach((track) => track.stop());
+          if (ownsStreamRef.current && activeStream) {
+            activeStream.getTracks().forEach((track) => track.stop());
+          }
           return;
         }
 
-        streamRef.current = stream;
+        streamRef.current = activeStream;
         audioContextRef.current = new AudioContext();
         analyserRef.current = audioContextRef.current.createAnalyser();
-        
-        const source = audioContextRef.current.createMediaStreamSource(stream);
+
+        const source = audioContextRef.current.createMediaStreamSource(activeStream);
         source.connect(analyserRef.current);
-        
+
         analyserRef.current.fftSize = 512;
         const bufferLength = analyserRef.current.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
@@ -57,15 +76,18 @@ export function useVoiceActivity({
           if (!mounted || !analyserRef.current) return;
 
           analyserRef.current.getByteFrequencyData(dataArray);
-          
+
           // Calculate average volume
           const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
           const normalized = average / 255;
 
+          setVolume(normalized);
+
           if (normalized > threshold) {
             // Speech detected
-            if (!isSpeaking) {
+            if (!isSpeakingRef.current) {
               setIsSpeaking(true);
+              isSpeakingRef.current = true;
               onSpeechStart?.();
             }
 
@@ -76,9 +98,10 @@ export function useVoiceActivity({
             }
           } else {
             // Silence detected
-            if (isSpeaking && !silenceTimerRef.current) {
+            if (isSpeakingRef.current && !silenceTimerRef.current) {
               silenceTimerRef.current = setTimeout(() => {
                 setIsSpeaking(false);
+                isSpeakingRef.current = false;
                 onSpeechEnd?.();
                 silenceTimerRef.current = null;
               }, silenceDuration);
@@ -100,7 +123,7 @@ export function useVoiceActivity({
       mounted = false;
       cleanup();
     };
-  }, [enabled, threshold, silenceDuration]);
+  }, [enabled, threshold, silenceDuration, stream, onSpeechStart, onSpeechEnd]);
 
   const cleanup = () => {
     if (rafRef.current) {
@@ -114,7 +137,9 @@ export function useVoiceActivity({
     }
 
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      if (ownsStreamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
       streamRef.current = null;
     }
 
@@ -125,7 +150,9 @@ export function useVoiceActivity({
 
     analyserRef.current = null;
     setIsSpeaking(false);
+    isSpeakingRef.current = false;
+    setVolume(0);
   };
 
-  return { isSpeaking };
+  return { isSpeaking, volume };
 }

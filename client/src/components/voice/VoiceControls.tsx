@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Radio } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AudioWaveform } from "./AudioWaveform";
+import { useVoiceActivity } from "@/hooks/useVoiceActivity";
 
 interface VoiceControlsProps {
   isRecording: boolean;
@@ -11,6 +13,7 @@ interface VoiceControlsProps {
   error: string | null;
   onStartSession: () => void;
   onStopSession: () => void;
+  mediaStream: MediaStream | null;
 }
 
 /**
@@ -25,6 +28,7 @@ export function VoiceControls({
   error,
   onStartSession,
   onStopSession,
+  mediaStream,
 }: VoiceControlsProps) {
   const handleToggle = () => {
     if (recorderReady) {
@@ -33,6 +37,13 @@ export function VoiceControls({
       onStartSession();
     }
   };
+
+  const { isSpeaking, volume } = useVoiceActivity({
+    enabled: isRecording && Boolean(mediaStream),
+    stream: mediaStream,
+    threshold: 0.02,
+    silenceDuration: 600,
+  });
 
   return (
     <div className="flex-shrink-0 border-t bg-white/80 backdrop-blur-sm">
@@ -63,23 +74,29 @@ export function VoiceControls({
             )}
           </Button>
 
-          <div className="flex-1 flex items-center gap-2 text-sm">
-            {recorderReady && (
+          <div className="flex-1 flex items-center gap-4">
+            {recorderReady ? (
               <>
-                <Radio
-                  className={cn(
-                    "w-4 h-4",
-                    isPressed ? "text-red-500 animate-pulse" : "text-slate-400"
-                  )}
+                <AudioWaveform
+                  volume={isRecording ? volume : 0}
+                  isActive={isRecording}
+                  isSpeaking={isSpeaking}
                 />
-                <span className="text-slate-600">
-                  {isPressed ? "Recording..." : "Hold space to talk"}
-                </span>
+                <div className="flex flex-col gap-0.5 text-sm">
+                  <span className="font-medium text-slate-700">
+                    {isPressed
+                      ? isSpeaking
+                        ? "Capturing your voice..."
+                        : "Listening..."
+                      : "Hold space to talk"}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {isPressed ? "Release to send your message" : "You can also click the mic button"}
+                  </span>
+                </div>
               </>
-            )}
-            
-            {!recorderReady && !isConnected && (
-              <span className="text-slate-600">Click to activate</span>
+            ) : (
+              !isConnected && <span className="text-sm text-slate-600">Click to activate</span>
             )}
           </div>
 

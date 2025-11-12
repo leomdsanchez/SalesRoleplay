@@ -26,6 +26,7 @@ export default function VoiceAgentV2() {
     recorderReady,
     isRecording,
     isPressed,
+    mediaStream,
     error,
     startSession,
     stopSession,
@@ -101,6 +102,7 @@ export default function VoiceAgentV2() {
           error={error}
           onStartSession={startSession}
           onStopSession={stopSession}
+          mediaStream={mediaStream}
         />
       </div>
     </div>

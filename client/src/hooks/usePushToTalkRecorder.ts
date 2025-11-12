@@ -18,31 +18,68 @@ export function usePushToTalkRecorder({
   const [isActive, setIsActive] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const shouldSendRef = useRef(false);
   const isProcessingRef = useRef(false); // Prevent duplicate calls
+  const chunksRef = useRef<Blob[]>([]);
+
+  const deliverRecording = useCallback(() => {
+    if (!shouldSendRef.current) {
+      chunksRef.current = [];
+      return;
+    }
+
+    if (chunksRef.current.length === 0) {
+      console.warn("[PushToTalk] No audio chunks captured");
+      shouldSendRef.current = false;
+      return;
+    }
+
+    const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+    const blob = new Blob(chunksRef.current, { type: mimeType });
+
+    console.log(
+      `[PushToTalk] Delivering recording (${blob.size} bytes, ${chunksRef.current.length} chunks)`
+    );
+
+    onAudioReady(blob);
+    shouldSendRef.current = false;
+    chunksRef.current = [];
+  }, [onAudioReady]);
 
   // Initialize MediaRecorder
   const initialize = useCallback(async () => {
     try {
       console.log("[PushToTalk] Initializing...");
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setStream(stream);
 
       const mimeType = "audio/webm;codecs=opus";
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
+      mediaRecorder.onstart = () => {
+        console.log("[PushToTalk] Recorder started");
+        chunksRef.current = [];
+      };
+
       mediaRecorder.ondataavailable = (event) => {
-        console.log(`[PushToTalk] Data available: ${event.data.size} bytes, shouldSend: ${shouldSendRef.current}`);
-        
-        if (event.data.size > 0 && shouldSendRef.current) {
-          console.log("[PushToTalk] Sending audio blob");
-          onAudioReady(event.data);
-          shouldSendRef.current = false;
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
         }
+
+        console.log(
+          `[PushToTalk] Data available: ${event.data.size} bytes (total chunks: ${chunksRef.current.length}), shouldSend: ${shouldSendRef.current}`
+        );
+      };
+
+      mediaRecorder.onstop = () => {
+        console.log("[PushToTalk] Recorder stopped");
+        deliverRecording();
       };
 
       mediaRecorder.onerror = (event: any) => {
@@ -60,13 +97,14 @@ export function usePushToTalkRecorder({
       setError(err.message);
       setIsReady(false);
     }
-  }, [onAudioReady]);
+  }, [deliverRecording]);
 
   // Cleanup
   const cleanup = useCallback(() => {
     console.log("[PushToTalk] Cleaning up...");
-    
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      shouldSendRef.current = false;
       mediaRecorderRef.current.stop();
     }
 
@@ -76,6 +114,9 @@ export function usePushToTalkRecorder({
     }
 
     mediaRecorderRef.current = null;
+    setStream(null);
+    chunksRef.current = [];
+    shouldSendRef.current = false;
     setIsReady(false);
     setIsActive(false);
   }, []);
@@ -97,10 +138,11 @@ export function usePushToTalkRecorder({
     if (state === "inactive") {
       console.log("[PushToTalk] Starting recording...");
       isProcessingRef.current = true;
-      
+      shouldSendRef.current = false;
+
       // Call callback to clear audio queue
       onRecordingStart?.();
-      
+
       mediaRecorderRef.current.start();
       setIsActive(true);
       setTimeout(() => { isProcessingRef.current = false; }, 100);
@@ -164,5 +206,6 @@ export function usePushToTalkRecorder({
     error,
     startRecording,
     stopRecording,
+    stream,
   };
 }
